@@ -27,8 +27,13 @@ export const AudioRecorder = ({ onRecordingComplete, onAudioChunk }: AudioRecord
       });
       
       streamRef.current = stream;
+      // Use a more compatible format for chunked recording
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
+        ? 'audio/webm' 
+        : 'audio/ogg';
+      
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
+        mimeType: mimeType
       });
       
       mediaRecorderRef.current = mediaRecorder;
@@ -42,7 +47,8 @@ export const AudioRecorder = ({ onRecordingComplete, onAudioChunk }: AudioRecord
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(chunksRef.current, { type: mimeType });
+        console.log('Recording complete, blob size:', audioBlob.size);
         onRecordingComplete(audioBlob);
         
         // Clean up
@@ -60,16 +66,9 @@ export const AudioRecorder = ({ onRecordingComplete, onAudioChunk }: AudioRecord
         setRecordingTime(prev => prev + 1);
       }, 1000);
 
-      // Send audio chunks for live transcription every 5 seconds
-      if (onAudioChunk) {
-        chunkTimerRef.current = setInterval(() => {
-          if (tempChunksRef.current.length > 0) {
-            const chunkBlob = new Blob(tempChunksRef.current, { type: 'audio/webm' });
-            onAudioChunk(chunkBlob);
-            tempChunksRef.current = []; // Clear temp chunks after sending
-          }
-        }, 5000); // Send chunks every 5 seconds
-      }
+      // Disable live transcription for now - requires more complex audio handling
+      // Live transcription would need proper audio encoding and buffering
+      // which is beyond the scope of a simple chunk-based approach
 
       // If Electron API available, notify main process
       if (window.electronAPI) {
@@ -117,6 +116,7 @@ export const AudioRecorder = ({ onRecordingComplete, onAudioChunk }: AudioRecord
   return {
     isRecording,
     recordingTime: formatTime(recordingTime),
+    recordingTimeSeconds: recordingTime,
     startRecording,
     stopRecording
   };

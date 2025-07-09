@@ -29,6 +29,7 @@ export const Dashboard: React.FC = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [showLiveTranscript, setShowLiveTranscript] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
+  const currentMeetingRef = React.useRef(currentMeeting);
   const settings = useStore((state) => state.settings);
   const todaysMeetings = meetings.filter(
     (m) => m.date === format(new Date(), 'yyyy-MM-dd')
@@ -36,37 +37,52 @@ export const Dashboard: React.FC = () => {
 
   // Create a ref to store the recording state for the useEffect
   const [isRecording, setIsRecording] = useState(false);
+  
+  // Keep ref in sync with current meeting
+  React.useEffect(() => {
+    currentMeetingRef.current = currentMeeting;
+  }, [currentMeeting]);
 
   const audioRecorder = AudioRecorder({
     onRecordingComplete: useCallback(async (audioBlob: Blob) => {
-      if (!currentMeeting) return;
+      const meeting = currentMeetingRef.current;
+      console.log('onRecordingComplete called, meeting:', meeting);
+      if (!meeting) {
+        console.error('No current meeting found!');
+        alert('Error: No active meeting. Please try recording again.');
+        return;
+      }
       
       setProcessingAudio(true);
       setIsTranscribing(true);
+      console.log('Processing recording, blob size:', audioBlob.size);
       try {
         // Convert blob to File for OpenAI
-        const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], 'recording.webm', { type: audioBlob.type || 'audio/webm' });
+        console.log('Created audio file:', audioFile.name, 'size:', audioFile.size, 'type:', audioFile.type);
         
         // Update meeting as completed
-        updateMeeting(currentMeeting.id, {
+        updateMeeting(meeting.id, {
           endTime: new Date(),
           isRecording: false
         });
         
         // Send meeting ended notification if enabled
         if (settings.meetingNotifications !== false) {
-          notificationService.notifyMeetingEnded(currentMeeting.title);
+          notificationService.notifyMeetingEnded(meeting.title);
         }
 
         // Transcribe audio
         try {
+          console.log('Starting transcription, file size:', audioFile.size);
           const transcription = await openAIService.transcribeAudio(audioFile);
+          console.log('Transcription result:', transcription);
           setCurrentTranscription(transcription);
           
           // Save the transcription
           addNote({
             id: Date.now().toString(),
-            meetingId: currentMeeting.id,
+            meetingId: meeting.id,
             rawTranscript: transcription,
             enhancedNotes: '',
             summary: '',
@@ -78,37 +94,38 @@ export const Dashboard: React.FC = () => {
           // Generate AI title
           try {
             const aiTitle = await openAIService.generateMeetingTitle(transcription, 'descriptive');
-            updateMeeting(currentMeeting.id, { title: aiTitle });
+            updateMeeting(meeting.id, { title: aiTitle });
           } catch (error) {
             console.error('Failed to generate title:', error);
           }
           
           // Store template used
           if (selectedTemplateId) {
-            updateMeeting(currentMeeting.id, { templateId: selectedTemplateId });
+            updateMeeting(meeting.id, { templateId: selectedTemplateId });
           }
           
           // Send transcription ready notification if enabled
           if (settings.transcriptionNotifications !== false) {
-            notificationService.notifyTranscriptionReady(currentMeeting.title);
+            notificationService.notifyTranscriptionReady(meeting.title);
           }
           
           // Navigate to meeting detail view after a short delay
           setTimeout(() => {
-            navigate(`/meeting/${currentMeeting.id}`);
+            navigate(`/meeting/${meeting.id}`);
           }, 2000);
         } catch (error) {
           console.error('Transcription failed:', error);
-          alert('Failed to transcribe audio. Please check your API key.');
+          alert(`Failed to transcribe audio: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       } catch (error) {
         console.error('Failed to process recording:', error);
-        alert('Failed to process recording');
+        alert(`Failed to process recording: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setProcessingAudio(false);
         setIsTranscribing(false);
+        setCurrentMeeting(null);
       }
-    }, [currentMeeting, updateMeeting, addNote, navigate, selectedTemplateId, settings.meetingNotifications, settings.transcriptionNotifications]),
+    }, [updateMeeting, addNote, navigate, selectedTemplateId, settings.meetingNotifications, settings.transcriptionNotifications]),
     onAudioChunk: useCallback(async (audioBlob: Blob) => {
       try {
         const chunkTranscript = await openAIService.transcribeAudioChunk(audioBlob);
@@ -510,7 +527,7 @@ export const Dashboard: React.FC = () => {
       {/* Recording Indicator */}
       <RecordingIndicator 
         isRecording={audioRecorder.isRecording}
-        duration={audioRecorder.recordingTime}
+        duration={audioRecorder.recordingTimeSeconds}
       />
 
       {/* Live Transcript Modal */}
@@ -530,16 +547,18 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="flex-1 p-6 overflow-y-auto">
               <div className="text-gray-600">
-                {liveTranscript ? (
-                  <div className="whitespace-pre-wrap">{liveTranscript}</div>
-                ) : (
-                  <div className="text-center">
-                    <MicrophoneIcon className="h-12 w-12 text-gray-400 mx-auto mb-2 animate-pulse" />
-                    <p className="text-lg mb-2">Listening...</p>
-                    <p className="text-sm text-gray-500">Transcription will appear here as you speak.</p>
-                    <p className="text-xs text-gray-400 mt-4">Audio is processed every 5 seconds</p>
+                <div className="text-center">
+                  <MicrophoneIcon className="h-12 w-12 text-gray-400 mx-auto mb-2 animate-pulse" />
+                  <p className="text-lg mb-2">Recording in Progress</p>
+                  <p className="text-sm text-gray-500 mb-4">Live transcription is coming soon!</p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                    <p className="text-sm text-blue-800">
+                      <strong>Note:</strong> Your full meeting will be transcribed after you stop recording. 
+                      Live transcription requires additional setup and will be available in a future update.
+                    </p>
                   </div>
-                )}
+                  <p className="text-xs text-gray-400 mt-4">Recording time: {audioRecorder.recordingTime}</p>
+                </div>
               </div>
             </div>
           </div>

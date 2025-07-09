@@ -27,7 +27,7 @@ export const RecordingIndicator: React.FC<RecordingIndicatorProps> = ({ isRecord
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-50">
+    <div className="fixed bottom-8 left-8 z-50">
       <div className="relative">
         {/* Pulsing background */}
         <div className={`absolute inset-0 bg-red-500 rounded-full ${isPulsing ? 'animate-ping' : ''}`} />
