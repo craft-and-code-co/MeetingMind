@@ -22,6 +22,26 @@ export class OpenAIService {
     return response.text;
   }
 
+  async transcribeAudioChunk(audioBlob: Blob): Promise<string> {
+    if (!this.client) throw new Error('OpenAI client not initialized');
+
+    // Convert blob to File for OpenAI API
+    const audioFile = new File([audioBlob], 'chunk.webm', { type: 'audio/webm' });
+
+    try {
+      const response = await this.client.audio.transcriptions.create({
+        file: audioFile,
+        model: 'whisper-1',
+        response_format: 'text',
+      });
+
+      return response;
+    } catch (error) {
+      console.error('Live transcription error:', error);
+      return ''; // Return empty string on error to continue recording
+    }
+  }
+
   async enhanceNotes(transcript: string, template?: string): Promise<{
     summary: string;
     enhancedNotes: string;

@@ -9,7 +9,6 @@ import {
   TrashIcon,
   CheckIcon,
   DocumentDuplicateIcon,
-  CommandLineIcon
 } from '@heroicons/react/24/outline';
 import { useStore } from '../store/useStore';
 import { authService, databaseService } from '../services/supabase';

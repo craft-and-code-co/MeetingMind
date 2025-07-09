@@ -41,6 +41,11 @@ export interface Settings {
   autoStartRecording: boolean;
   enableKeyboardShortcuts?: boolean;
   enableNotifications?: boolean;
+  meetingNotifications?: boolean;
+  transcriptionNotifications?: boolean;
+  meetingDetectionNotifications?: boolean;
+  actionItemNotifications?: boolean;
+  reminderNotifications?: boolean;
 }
 
 export interface Reminder {

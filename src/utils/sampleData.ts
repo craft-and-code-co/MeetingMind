@@ -1,4 +1,4 @@
-import { Meeting, Note, ActionItem } from '../types';
+import { Meeting, ActionItem } from '../types';
 import { format, subDays } from 'date-fns';
 
 export const generateSampleData = () => {

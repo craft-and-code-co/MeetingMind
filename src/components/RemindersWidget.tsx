@@ -5,7 +5,7 @@ import { useStore } from '../store/useStore';
 import { Reminder } from '../types';
 
 export const RemindersWidget: React.FC = () => {
-  const { reminders, updateReminder, deleteReminder, getPendingReminders } = useStore();
+  const { reminders, updateReminder, getPendingReminders } = useStore();
   const [showWidget, setShowWidget] = useState(false);
   const [expandedReminder, setExpandedReminder] = useState<string | null>(null);
   

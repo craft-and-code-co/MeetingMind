@@ -15,7 +15,7 @@ import { Reminder } from '../types';
 
 export const Reminders: React.FC = () => {
   const navigate = useNavigate();
-  const { reminders, meetings, updateReminder, deleteReminder } = useStore();
+  const { reminders, meetings, updateReminder } = useStore();
   const [filter, setFilter] = useState<'all' | 'pending' | 'overdue' | 'upcoming'>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
 

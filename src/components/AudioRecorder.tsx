@@ -1,17 +1,19 @@
-import React, { useRef, useState, useCallback } from 'react';
-import { useStore } from '../store/useStore';
+import { useRef, useState, useCallback } from 'react';
 
 interface AudioRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void;
+  onAudioChunk?: (audioBlob: Blob) => void;
 }
 
-export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
+export const AudioRecorder = ({ onRecordingComplete, onAudioChunk }: AudioRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const chunkTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const tempChunksRef = useRef<Blob[]>([]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -35,6 +37,7 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
+          tempChunksRef.current.push(event.data);
         }
       };
 
@@ -57,6 +60,17 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
 
+      // Send audio chunks for live transcription every 5 seconds
+      if (onAudioChunk) {
+        chunkTimerRef.current = setInterval(() => {
+          if (tempChunksRef.current.length > 0) {
+            const chunkBlob = new Blob(tempChunksRef.current, { type: 'audio/webm' });
+            onAudioChunk(chunkBlob);
+            tempChunksRef.current = []; // Clear temp chunks after sending
+          }
+        }, 5000); // Send chunks every 5 seconds
+      }
+
       // If Electron API available, notify main process
       if (window.electronAPI) {
         await window.electronAPI.startAudioCapture();
@@ -77,7 +91,15 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      
+      // Stop chunk timer
+      if (chunkTimerRef.current) {
+        clearInterval(chunkTimerRef.current);
+        chunkTimerRef.current = null;
+      }
+      
       setRecordingTime(0);
+      tempChunksRef.current = [];
 
       // If Electron API available, notify main process
       if (window.electronAPI) {

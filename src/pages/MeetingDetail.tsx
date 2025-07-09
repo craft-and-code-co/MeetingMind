@@ -9,7 +9,6 @@ import {
   PlusIcon,
   TrashIcon,
   PencilIcon,
-  EyeIcon,
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { useStore } from '../store/useStore';
@@ -23,7 +22,7 @@ export const MeetingDetail: React.FC = () => {
   const navigate = useNavigate();
   const { 
     meetings, 
-    notes, 
+ 
     actionItems,
     addNote, 
     updateNote, 
@@ -201,11 +200,6 @@ export const MeetingDetail: React.FC = () => {
     setNewActionItem('');
   };
 
-  const handleDeleteActionItem = (itemId: string) => {
-    // In a real app, you'd add a deleteActionItem method to the store
-    // For now, we'll just mark it as completed
-    updateActionItem(itemId, { status: 'completed' });
-  };
 
   const handleGenerateTitle = async () => {
     if (!rawTranscript) {

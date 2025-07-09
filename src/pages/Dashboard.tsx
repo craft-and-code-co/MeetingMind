@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { format, addHours } from 'date-fns';
+import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, MicrophoneIcon, DocumentTextIcon, StopIcon, ArrowRightOnRectangleIcon, TrashIcon, MagnifyingGlassIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { useStore } from '../store/useStore';
@@ -10,73 +10,32 @@ import { PermissionsDialog } from '../components/PermissionsDialog';
 import { TemplateSelector } from '../components/TemplateSelector';
 import { KeyboardShortcuts } from '../components/KeyboardShortcuts';
 import { SystemTray } from '../components/SystemTray';
+import { RecordingIndicator } from '../components/RecordingIndicator';
 import { notificationService } from '../services/notifications';
 import { meetingDetectionService } from '../services/meetingDetection';
 import { openAIService } from '../services/openai';
 import { authService } from '../services/supabase';
 import { generateSampleData } from '../utils/sampleData';
 import { meetingTemplates } from '../data/meetingTemplates';
-import { Reminder } from '../types';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { meetings, currentMeeting, setCurrentMeeting, addMeeting, updateMeeting, deleteMeeting, addActionItem, addNote, addReminder } = useStore();
+  const { meetings, currentMeeting, setCurrentMeeting, addMeeting, updateMeeting, deleteMeeting, addActionItem, addNote } = useStore();
   const [processingAudio, setProcessingAudio] = useState(false);
   const [currentTranscription, setCurrentTranscription] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [showLiveTranscript, setShowLiveTranscript] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
   const settings = useStore((state) => state.settings);
   const todaysMeetings = meetings.filter(
     (m) => m.date === format(new Date(), 'yyyy-MM-dd')
   );
 
-  // System tray and Electron listeners
-  React.useEffect(() => {
-    if (window.electronAPI) {
-      // Update tray menu when recording state changes
-      window.electronAPI.updateTrayMenu({ isRecording: audioRecorder.isRecording });
-      
-      // Listen for tray toggle recording events
-      const handleTrayToggle = () => {
-        if (audioRecorder.isRecording) {
-          handleStopRecording();
-        } else {
-          handleStartRecording();
-        }
-      };
-      
-      window.electronAPI.onTrayToggleRecording(handleTrayToggle);
-    }
-    
-    // Start meeting detection if auto-start is enabled
-    if (settings.autoStartRecording) {
-      meetingDetectionService.startMonitoring();
-    }
-    
-    // Listen for meeting detection events
-    const handleMeetingDetected = (event: CustomEvent) => {
-      const detectedMeeting = event.detail;
-      if (settings.meetingDetectionNotifications !== false) {
-        // Notification is already sent by the detection service
-      }
-      
-      // Auto-start recording if enabled and no meeting is currently being recorded
-      if (settings.autoStartRecording && !audioRecorder.isRecording) {
-        setTimeout(() => {
-          handleStartRecording();
-        }, 2000); // Give user 2 seconds to see the notification
-      }
-    };
-    
-    window.addEventListener('meetingDetected', handleMeetingDetected as EventListener);
-    
-    return () => {
-      window.removeEventListener('meetingDetected', handleMeetingDetected as EventListener);
-      meetingDetectionService.stopMonitoring();
-    };
-  }, [audioRecorder.isRecording, settings.autoStartRecording, settings.meetingDetectionNotifications]);
+  // Create a ref to store the recording state for the useEffect
+  const [isRecording, setIsRecording] = useState(false);
 
   const audioRecorder = AudioRecorder({
     onRecordingComplete: useCallback(async (audioBlob: Blob) => {
@@ -149,8 +108,76 @@ export const Dashboard: React.FC = () => {
         setProcessingAudio(false);
         setIsTranscribing(false);
       }
-    }, [currentMeeting, updateMeeting, addNote, navigate])
+    }, [currentMeeting, updateMeeting, addNote, navigate, selectedTemplateId, settings.meetingNotifications, settings.transcriptionNotifications]),
+    onAudioChunk: useCallback(async (audioBlob: Blob) => {
+      try {
+        const chunkTranscript = await openAIService.transcribeAudioChunk(audioBlob);
+        if (chunkTranscript) {
+          setLiveTranscript(prev => {
+            // Add a space between chunks if there's existing text
+            const separator = prev && !prev.endsWith(' ') ? ' ' : '';
+            return prev + separator + chunkTranscript;
+          });
+        }
+      } catch (error) {
+        console.error('Live transcription error:', error);
+      }
+    }, [])
   });
+
+  // Update isRecording state when audioRecorder state changes
+  React.useEffect(() => {
+    setIsRecording(audioRecorder.isRecording);
+  }, [audioRecorder.isRecording]);
+
+  // System tray and Electron listeners
+  React.useEffect(() => {
+    if (window.electronAPI) {
+      // Update tray menu when recording state changes
+      window.electronAPI.updateTrayMenu?.({ isRecording });
+      
+      // Listen for tray toggle recording events
+      const handleTrayToggle = () => {
+        if (isRecording) {
+          handleStopRecording();
+        } else {
+          handleStartRecording();
+        }
+      };
+      
+      window.electronAPI.onTrayToggleRecording?.(handleTrayToggle);
+    }
+    
+    // Start meeting detection if auto-start is enabled
+    if (settings.autoStartRecording) {
+      meetingDetectionService.startMonitoring();
+    }
+    
+    // Listen for meeting detection events
+    const handleMeetingDetected = (event: CustomEvent) => {
+      if (settings.meetingDetectionNotifications !== false) {
+        // Notification is already sent by the detection service
+      }
+      
+      // Auto-start recording if enabled and no meeting is currently being recorded
+      if (settings.autoStartRecording && !isRecording) {
+        setTimeout(() => {
+          handleStartRecording();
+        }, 2000); // Give user 2 seconds to see the notification
+      }
+    };
+    
+    window.addEventListener('meetingDetected', handleMeetingDetected as EventListener);
+    
+    return () => {
+      window.removeEventListener('meetingDetected', handleMeetingDetected as EventListener);
+      meetingDetectionService.stopMonitoring();
+    };
+  }, [isRecording, settings.autoStartRecording, settings.meetingDetectionNotifications]);
+
+  const handleStopRecording = () => {
+    audioRecorder.stopRecording();
+  };
 
   const handleStartRecording = async () => {
     // Check if we have microphone permission
@@ -171,12 +198,10 @@ export const Dashboard: React.FC = () => {
       }
     }
     
-    // Show template selector if no default template
-    if (!selectedTemplateId && !settings.defaultMeetingTemplate) {
-      setShowTemplateSelector(true);
-      return;
-    }
+    // Reset live transcript for new recording
+    setLiveTranscript('');
     
+    // Use default template or 'custom' if none selected
     const templateId = selectedTemplateId || settings.defaultMeetingTemplate || 'custom';
     const template = meetingTemplates.find(t => t.id === templateId);
     
@@ -200,10 +225,6 @@ export const Dashboard: React.FC = () => {
     if (settings.meetingNotifications !== false) {
       notificationService.notifyMeetingStarted(newMeeting.title);
     }
-  };
-
-  const handleStopRecording = () => {
-    audioRecorder.stopRecording();
   };
 
   // Temporary function to load sample data
@@ -331,6 +352,15 @@ export const Dashboard: React.FC = () => {
                 </>
               )}
             </button>
+            {audioRecorder.isRecording && (
+              <button
+                onClick={() => setShowLiveTranscript(!showLiveTranscript)}
+                className="ml-3 inline-flex items-center px-4 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <DocumentTextIcon className="h-5 w-5 mr-2" />
+                {showLiveTranscript ? 'Hide' : 'Show'} Live Transcript
+              </button>
+            )}
           </div>
         </div>
 
@@ -476,6 +506,45 @@ export const Dashboard: React.FC = () => {
         onOpenApp={() => window.electronAPI?.show?.()}
         onQuit={() => window.electronAPI?.quit?.()}
       />
+
+      {/* Recording Indicator */}
+      <RecordingIndicator 
+        isRecording={audioRecorder.isRecording}
+        duration={audioRecorder.recordingTime}
+      />
+
+      {/* Live Transcript Modal */}
+      {showLiveTranscript && audioRecorder.isRecording && (
+        <div className="fixed inset-0 z-40 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Live Transcript</h3>
+              <button
+                onClick={() => setShowLiveTranscript(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 p-6 overflow-y-auto">
+              <div className="text-gray-600">
+                {liveTranscript ? (
+                  <div className="whitespace-pre-wrap">{liveTranscript}</div>
+                ) : (
+                  <div className="text-center">
+                    <MicrophoneIcon className="h-12 w-12 text-gray-400 mx-auto mb-2 animate-pulse" />
+                    <p className="text-lg mb-2">Listening...</p>
+                    <p className="text-sm text-gray-500">Transcription will appear here as you speak.</p>
+                    <p className="text-xs text-gray-400 mt-4">Audio is processed every 5 seconds</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

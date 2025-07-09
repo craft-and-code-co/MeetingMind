@@ -100,7 +100,7 @@ function App() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [setSettings, setUserId]);
+  }, [setSettings, setUserId, hasApiKey, settings.openAIApiKey, skipAuth]);
 
   useEffect(() => {
     // Initialize OpenAI when settings change

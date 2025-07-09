@@ -18,7 +18,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js')
     },
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 20, y: 20 }
+    trafficLightPosition: { x: 15, y: 15 },
+    backgroundColor: '#f9fafb'
   });
 
   const startUrl = process.env.ELECTRON_START_URL || url.format({
