@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   storeApiKey: (apiKey) => ipcRenderer.invoke('store-api-key', apiKey),
   getApiKey: () => ipcRenderer.invoke('get-api-key'),
+  updateTrayMenu: (state) => ipcRenderer.invoke('update-tray-menu', state),
+  onTrayToggleRecording: (callback) => ipcRenderer.on('tray-toggle-recording', callback),
   
   // Audio capture APIs
   startAudioCapture: () => ipcRenderer.invoke('start-audio-capture'),

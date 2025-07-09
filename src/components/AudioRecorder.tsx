@@ -5,7 +5,7 @@ interface AudioRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void;
 }
 
-export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplete }) => {
+export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);

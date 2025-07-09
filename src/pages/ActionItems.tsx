@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, isToday } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeftIcon, ChevronRightIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { useStore } from '../store/useStore';
 import { ActionItem } from '../types';
 
 export const ActionItems: React.FC = () => {
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const { actionItems, updateActionItem, meetings } = useStore();
@@ -70,6 +72,32 @@ export const ActionItems: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <h1 className="text-2xl font-bold text-gray-900">Action Items</h1>
+            <nav className="flex space-x-4">
+              <button 
+                onClick={() => navigate('/dashboard')}
+                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Dashboard
+              </button>
+              <button 
+                onClick={() => navigate('/action-items')}
+                className="text-gray-900 bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Action Items
+              </button>
+              <button 
+                onClick={() => navigate('/reminders')}
+                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Reminders
+              </button>
+              <button 
+                onClick={() => navigate('/settings')}
+                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Settings
+              </button>
+            </nav>
           </div>
         </div>
       </header>

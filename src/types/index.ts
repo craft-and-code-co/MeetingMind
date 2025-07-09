@@ -8,6 +8,7 @@ export interface Meeting {
   platform: 'zoom' | 'teams' | 'meet' | 'slack' | 'other';
   isRecording?: boolean;
   audioPath?: string;
+  templateId?: string;
 }
 
 export interface Note {
@@ -35,6 +36,23 @@ export interface ActionItem {
 export interface Settings {
   openAIApiKey?: string;
   defaultTemplate?: string;
+  defaultMeetingTemplate?: string;
   audioQuality: 'low' | 'medium' | 'high';
   autoStartRecording: boolean;
+  enableKeyboardShortcuts?: boolean;
+  enableNotifications?: boolean;
+}
+
+export interface Reminder {
+  id: string;
+  meetingId: string;
+  actionItemId?: string;
+  title: string;
+  description: string;
+  dueDate: string;
+  reminderDate: string;
+  status: 'pending' | 'sent' | 'dismissed';
+  priority: 'low' | 'medium' | 'high';
+  createdAt: Date;
+  updatedAt: Date;
 }

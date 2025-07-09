@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const url = require('url');
 const fs = require('fs').promises;
 
 let mainWindow;
+let tray;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -54,11 +55,115 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+// System tray setup
+function createTray() {
+  // Create a simple icon for the tray
+  const icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
+  tray = new Tray(icon);
+  
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'MeetingMind',
+      type: 'normal',
+      click: () => {
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Start Recording',
+      type: 'normal',
+      id: 'record',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.webContents.send('tray-toggle-recording');
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      type: 'normal',
+      click: () => {
+        app.quit();
+      }
+    }
+  ]);
+  
+  tray.setToolTip('MeetingMind');
+  tray.setContextMenu(contextMenu);
+  
+  tray.on('click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }
+  });
+}
 
+// Update tray menu based on recording state
+ipcMain.handle('update-tray-menu', (event, { isRecording }) => {
+  if (tray) {
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'MeetingMind',
+        type: 'normal',
+        click: () => {
+          if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: isRecording ? 'Stop Recording' : 'Start Recording',
+        type: 'normal',
+        id: 'record',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.webContents.send('tray-toggle-recording');
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        type: 'normal',
+        click: () => {
+          app.quit();
+        }
+      }
+    ]);
+    
+    tray.setContextMenu(contextMenu);
+  }
+});
+
+app.whenReady().then(() => {
+  createWindow();
+  createTray();
+});
+
+// Prevent the app from quitting when all windows are closed on macOS
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
   }
 });
 

@@ -5,10 +5,14 @@ import { Setup } from './pages/Setup';
 import { Dashboard } from './pages/Dashboard';
 import { ActionItems } from './pages/ActionItems';
 import { MeetingDetail } from './pages/MeetingDetail';
+import { Settings } from './pages/Settings';
 import { Auth } from './pages/Auth';
+import { Reminders } from './pages/Reminders';
+import { Search } from './pages/Search';
+import { Analytics } from './pages/Analytics';
 import { useStore } from './store/useStore';
 import { openAIService } from './services/openai';
-import { authService } from './services/supabase';
+import { authService, databaseService } from './services/supabase';
 import './App.css';
 
 const queryClient = new QueryClient();
@@ -20,23 +24,56 @@ function App() {
   const settings = useStore((state) => state.settings);
   const setSettings = useStore((state) => state.setSettings);
   const setUserId = useStore((state) => state.setUserId);
+  
+  // Development mode flag
+  const skipAuth = process.env.REACT_APP_SKIP_AUTH === 'true';
 
   useEffect(() => {
     // Check authentication status
     const checkAuth = async () => {
       try {
-        const user = await authService.getCurrentUser();
-        if (user) {
+        // Skip auth in development mode
+        if (skipAuth) {
           setIsAuthenticated(true);
-          setUserId(user.id);
+          setUserId('dev-user');
           
-          // Check for API key if authenticated
-          if (window.electronAPI) {
-            const storedKey = await window.electronAPI.getApiKey();
-            if (storedKey) {
-              setSettings({ openAIApiKey: storedKey });
-              openAIService.initialize(storedKey);
-              setHasApiKey(true);
+          // Check for API key in settings
+          if (settings.openAIApiKey) {
+            openAIService.initialize(settings.openAIApiKey);
+            setHasApiKey(true);
+          }
+        } else {
+          const user = await authService.getCurrentUser();
+          if (user) {
+            setIsAuthenticated(true);
+            setUserId(user.id);
+            
+            // Check for API key from Supabase first
+            try {
+              const storedKey = await databaseService.getApiKey(user.id);
+              if (storedKey) {
+                setSettings({ openAIApiKey: storedKey });
+                openAIService.initialize(storedKey);
+                setHasApiKey(true);
+              }
+            } catch (error) {
+              console.error('Failed to get API key from database:', error);
+            }
+            
+            // Fallback to local storage via Electron
+            if (!hasApiKey && window.electronAPI) {
+              try {
+                const localKey = await window.electronAPI.getApiKey();
+                if (localKey) {
+                  setSettings({ openAIApiKey: localKey });
+                  openAIService.initialize(localKey);
+                  setHasApiKey(true);
+                  // Sync to Supabase for future use
+                  await databaseService.storeApiKey(user.id, localKey);
+                }
+              } catch (error) {
+                console.error('Failed to get local API key:', error);
+              }
             }
           }
         }
@@ -67,9 +104,11 @@ function App() {
 
   useEffect(() => {
     // Initialize OpenAI when settings change
+    console.log('Settings API key changed:', !!settings.openAIApiKey);
     if (settings.openAIApiKey) {
       openAIService.initialize(settings.openAIApiKey);
       setHasApiKey(true);
+      console.log('API key set, hasApiKey:', true);
     }
   }, [settings.openAIApiKey]);
 
@@ -86,7 +125,7 @@ function App() {
 
   // Determine initial route
   const getInitialRoute = () => {
-    if (!isAuthenticated) return '/auth';
+    if (!isAuthenticated && !skipAuth) return '/auth';
     if (!hasApiKey) return '/setup';
     return '/dashboard';
   };
@@ -133,6 +172,38 @@ function App() {
               !isAuthenticated ? <Navigate to="/auth" /> :
               !hasApiKey ? <Navigate to="/setup" /> :
               <MeetingDetail />
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              !isAuthenticated ? <Navigate to="/auth" /> :
+              !hasApiKey ? <Navigate to="/setup" /> :
+              <Settings />
+            }
+          />
+          <Route
+            path="/reminders"
+            element={
+              !isAuthenticated ? <Navigate to="/auth" /> :
+              !hasApiKey ? <Navigate to="/setup" /> :
+              <Reminders />
+            }
+          />
+          <Route
+            path="/search"
+            element={
+              !isAuthenticated ? <Navigate to="/auth" /> :
+              !hasApiKey ? <Navigate to="/setup" /> :
+              <Search />
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              !isAuthenticated ? <Navigate to="/auth" /> :
+              !hasApiKey ? <Navigate to="/setup" /> :
+              <Analytics />
             }
           />
         </Routes>

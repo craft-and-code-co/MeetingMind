@@ -1,26 +1,89 @@
 import React, { useState, useCallback } from 'react';
-import { format } from 'date-fns';
+import { format, addHours } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, MicrophoneIcon, DocumentTextIcon, StopIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, MicrophoneIcon, DocumentTextIcon, StopIcon, ArrowRightOnRectangleIcon, TrashIcon, MagnifyingGlassIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { useStore } from '../store/useStore';
 import { AudioRecorder } from '../components/AudioRecorder';
+import { TranscriptionWidget } from '../components/TranscriptionWidget';
+import { RemindersWidget } from '../components/RemindersWidget';
+import { PermissionsDialog } from '../components/PermissionsDialog';
+import { TemplateSelector } from '../components/TemplateSelector';
+import { KeyboardShortcuts } from '../components/KeyboardShortcuts';
+import { SystemTray } from '../components/SystemTray';
+import { notificationService } from '../services/notifications';
+import { meetingDetectionService } from '../services/meetingDetection';
 import { openAIService } from '../services/openai';
 import { authService } from '../services/supabase';
 import { generateSampleData } from '../utils/sampleData';
+import { meetingTemplates } from '../data/meetingTemplates';
+import { Reminder } from '../types';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { meetings, currentMeeting, setCurrentMeeting, addMeeting, updateMeeting, addActionItem } = useStore();
+  const { meetings, currentMeeting, setCurrentMeeting, addMeeting, updateMeeting, deleteMeeting, addActionItem, addNote, addReminder } = useStore();
   const [processingAudio, setProcessingAudio] = useState(false);
+  const [currentTranscription, setCurrentTranscription] = useState('');
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const settings = useStore((state) => state.settings);
   const todaysMeetings = meetings.filter(
     (m) => m.date === format(new Date(), 'yyyy-MM-dd')
   );
+
+  // System tray and Electron listeners
+  React.useEffect(() => {
+    if (window.electronAPI) {
+      // Update tray menu when recording state changes
+      window.electronAPI.updateTrayMenu({ isRecording: audioRecorder.isRecording });
+      
+      // Listen for tray toggle recording events
+      const handleTrayToggle = () => {
+        if (audioRecorder.isRecording) {
+          handleStopRecording();
+        } else {
+          handleStartRecording();
+        }
+      };
+      
+      window.electronAPI.onTrayToggleRecording(handleTrayToggle);
+    }
+    
+    // Start meeting detection if auto-start is enabled
+    if (settings.autoStartRecording) {
+      meetingDetectionService.startMonitoring();
+    }
+    
+    // Listen for meeting detection events
+    const handleMeetingDetected = (event: CustomEvent) => {
+      const detectedMeeting = event.detail;
+      if (settings.meetingDetectionNotifications !== false) {
+        // Notification is already sent by the detection service
+      }
+      
+      // Auto-start recording if enabled and no meeting is currently being recorded
+      if (settings.autoStartRecording && !audioRecorder.isRecording) {
+        setTimeout(() => {
+          handleStartRecording();
+        }, 2000); // Give user 2 seconds to see the notification
+      }
+    };
+    
+    window.addEventListener('meetingDetected', handleMeetingDetected as EventListener);
+    
+    return () => {
+      window.removeEventListener('meetingDetected', handleMeetingDetected as EventListener);
+      meetingDetectionService.stopMonitoring();
+    };
+  }, [audioRecorder.isRecording, settings.autoStartRecording, settings.meetingDetectionNotifications]);
 
   const audioRecorder = AudioRecorder({
     onRecordingComplete: useCallback(async (audioBlob: Blob) => {
       if (!currentMeeting) return;
       
       setProcessingAudio(true);
+      setIsTranscribing(true);
       try {
         // Convert blob to File for OpenAI
         const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
@@ -30,36 +93,113 @@ export const Dashboard: React.FC = () => {
           endTime: new Date(),
           isRecording: false
         });
-
-        // TODO: Process audio with OpenAI
-        console.log('Audio recording complete, size:', audioBlob.size);
         
-        // Navigate to meeting detail view (to be implemented)
-        // navigate(`/meeting/${currentMeeting.id}`);
+        // Send meeting ended notification if enabled
+        if (settings.meetingNotifications !== false) {
+          notificationService.notifyMeetingEnded(currentMeeting.title);
+        }
+
+        // Transcribe audio
+        try {
+          const transcription = await openAIService.transcribeAudio(audioFile);
+          setCurrentTranscription(transcription);
+          
+          // Save the transcription
+          addNote({
+            id: Date.now().toString(),
+            meetingId: currentMeeting.id,
+            rawTranscript: transcription,
+            enhancedNotes: '',
+            summary: '',
+            actionItems: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          // Generate AI title
+          try {
+            const aiTitle = await openAIService.generateMeetingTitle(transcription, 'descriptive');
+            updateMeeting(currentMeeting.id, { title: aiTitle });
+          } catch (error) {
+            console.error('Failed to generate title:', error);
+          }
+          
+          // Store template used
+          if (selectedTemplateId) {
+            updateMeeting(currentMeeting.id, { templateId: selectedTemplateId });
+          }
+          
+          // Send transcription ready notification if enabled
+          if (settings.transcriptionNotifications !== false) {
+            notificationService.notifyTranscriptionReady(currentMeeting.title);
+          }
+          
+          // Navigate to meeting detail view after a short delay
+          setTimeout(() => {
+            navigate(`/meeting/${currentMeeting.id}`);
+          }, 2000);
+        } catch (error) {
+          console.error('Transcription failed:', error);
+          alert('Failed to transcribe audio. Please check your API key.');
+        }
       } catch (error) {
         console.error('Failed to process recording:', error);
         alert('Failed to process recording');
       } finally {
         setProcessingAudio(false);
-        setCurrentMeeting(null);
+        setIsTranscribing(false);
       }
-    }, [currentMeeting, updateMeeting, setCurrentMeeting])
+    }, [currentMeeting, updateMeeting, addNote, navigate])
   });
 
-  const handleStartRecording = () => {
+  const handleStartRecording = async () => {
+    // Check if we have microphone permission
+    const hasPermission = localStorage.getItem('meetingmind-mic-permission') === 'granted';
+    
+    if (!hasPermission) {
+      // Check current permission status
+      try {
+        const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        if (result.state !== 'granted') {
+          setShowPermissionsDialog(true);
+          return;
+        }
+      } catch {
+        // Permissions API not supported, show dialog to be safe
+        setShowPermissionsDialog(true);
+        return;
+      }
+    }
+    
+    // Show template selector if no default template
+    if (!selectedTemplateId && !settings.defaultMeetingTemplate) {
+      setShowTemplateSelector(true);
+      return;
+    }
+    
+    const templateId = selectedTemplateId || settings.defaultMeetingTemplate || 'custom';
+    const template = meetingTemplates.find(t => t.id === templateId);
+    
     const newMeeting = {
       id: Date.now().toString(),
-      title: `Meeting ${format(new Date(), 'MMM dd, HH:mm')}`,
+      title: template ? `${template.icon} ${template.name} - ${format(new Date(), 'MMM dd, HH:mm')}` : `Meeting ${format(new Date(), 'MMM dd, HH:mm')}`,
       date: format(new Date(), 'yyyy-MM-dd'),
       startTime: new Date(),
       participants: [],
       platform: 'other' as const,
       isRecording: true,
+      templateId: templateId
     };
     
     addMeeting(newMeeting);
     setCurrentMeeting(newMeeting);
     audioRecorder.startRecording();
+    setShowTemplateSelector(false);
+    
+    // Send notification if enabled
+    if (settings.meetingNotifications !== false) {
+      notificationService.notifyMeetingStarted(newMeeting.title);
+    }
   };
 
   const handleStopRecording = () => {
@@ -83,14 +223,36 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const handleDeleteMeeting = (e: React.MouseEvent, meetingId: string) => {
+    e.stopPropagation(); // Prevent navigation to meeting detail
+    
+    if (window.confirm('Are you sure you want to delete this meeting? This will also delete all notes, action items, and reminders associated with it.')) {
+      deleteMeeting(meetingId);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">MyGranola</h1>
+            <h1 className="text-2xl font-bold text-gray-900">MeetingMind</h1>
             <nav className="flex space-x-4">
+              <button 
+                onClick={() => navigate('/search')}
+                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+              >
+                <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
+                Search
+              </button>
+              <button 
+                onClick={() => navigate('/analytics')}
+                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+              >
+                <ChartBarIcon className="h-4 w-4 mr-1" />
+                Analytics
+              </button>
               <button 
                 onClick={() => navigate('/dashboard')}
                 className="text-gray-900 bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
@@ -102,6 +264,12 @@ export const Dashboard: React.FC = () => {
                 className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
               >
                 Action Items
+              </button>
+              <button 
+                onClick={() => navigate('/reminders')}
+                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Reminders
               </button>
               <button 
                 onClick={() => navigate('/settings')}
@@ -193,7 +361,7 @@ export const Dashboard: React.FC = () => {
                   className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <h4 className="text-sm font-medium text-gray-900">
                         {meeting.title}
                       </h4>
@@ -203,15 +371,26 @@ export const Dashboard: React.FC = () => {
                           ` - ${format(meeting.endTime, 'h:mm a')}`}
                       </p>
                     </div>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        meeting.isRecording
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}
-                    >
-                      {meeting.isRecording ? 'Recording' : 'Completed'}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          meeting.isRecording
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}
+                      >
+                        {meeting.isRecording ? 'Recording' : 'Completed'}
+                      </span>
+                      {!meeting.isRecording && (
+                        <button
+                          onClick={(e) => handleDeleteMeeting(e, meeting.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                          title="Delete meeting"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -229,6 +408,74 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
       </main>
+
+      {/* Floating Transcription Widget */}
+      <TranscriptionWidget
+        isRecording={audioRecorder.isRecording}
+        recordingTime={audioRecorder.recordingTime}
+        onStop={handleStopRecording}
+        transcription={currentTranscription}
+        isTranscribing={isTranscribing}
+      />
+      
+      {/* Reminders Widget */}
+      <RemindersWidget />
+      
+      {/* Permissions Dialog */}
+      <PermissionsDialog
+        isOpen={showPermissionsDialog}
+        onClose={() => setShowPermissionsDialog(false)}
+        onPermissionsGranted={() => {
+          setShowPermissionsDialog(false);
+          handleStartRecording();
+        }}
+      />
+      
+      {/* Template Selector Dialog */}
+      {showTemplateSelector && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">
+                Choose a Meeting Template
+              </h2>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <TemplateSelector
+                selectedTemplateId={selectedTemplateId}
+                onSelectTemplate={(templateId) => {
+                  setSelectedTemplateId(templateId);
+                  setShowTemplateSelector(false);
+                  handleStartRecording();
+                }}
+              />
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <button
+                onClick={() => setShowTemplateSelector(false)}
+                className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Keyboard Shortcuts */}
+      <KeyboardShortcuts
+        onStartRecording={handleStartRecording}
+        onStopRecording={handleStopRecording}
+        isRecording={audioRecorder.isRecording}
+      />
+      
+      {/* System Tray */}
+      <SystemTray
+        isRecording={audioRecorder.isRecording}
+        onToggleRecording={audioRecorder.isRecording ? handleStopRecording : handleStartRecording}
+        onOpenApp={() => window.electronAPI?.show?.()}
+        onQuit={() => window.electronAPI?.quit?.()}
+      />
     </div>
   );
 };

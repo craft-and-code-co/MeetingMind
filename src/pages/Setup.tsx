@@ -1,11 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
+import { databaseService } from '../services/supabase';
+import { openAIService } from '../services/openai';
 
 export const Setup: React.FC = () => {
+  const navigate = useNavigate();
   const [apiKey, setApiKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingKey, setIsCheckingKey] = useState(true);
   const [error, setError] = useState('');
   const setSettings = useStore((state) => state.setSettings);
+  const userId = useStore((state) => state.userId);
+
+  // Check if user already has an API key stored
+  useEffect(() => {
+    const checkExistingKey = async () => {
+      if (!userId) return;
+      
+      try {
+        const storedKey = await databaseService.getApiKey(userId);
+        if (storedKey) {
+          setSettings({ openAIApiKey: storedKey });
+          // Key found and set, navigation will happen automatically
+        }
+      } catch (error) {
+        console.error('Failed to check for existing API key:', error);
+      } finally {
+        setIsCheckingKey(false);
+      }
+    };
+
+    checkExistingKey();
+  }, [userId, setSettings]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,17 +45,40 @@ export const Setup: React.FC = () => {
         throw new Error('Invalid API key format');
       }
 
-      // Store API key securely via Electron
+      // Try to store in Supabase first for cross-device access
+      let supabaseSuccess = false;
+      if (userId) {
+        try {
+          await databaseService.storeApiKey(userId, apiKey);
+          supabaseSuccess = true;
+        } catch (error) {
+          console.error('Failed to store in Supabase:', error);
+          // Continue - we'll fall back to local storage
+        }
+      }
+
+      // Also store locally via Electron if available
       if (window.electronAPI) {
-        await window.electronAPI.storeApiKey(apiKey);
-      } else {
-        console.warn('Electron API not available, storing in memory only');
+        try {
+          await window.electronAPI.storeApiKey(apiKey);
+        } catch (error) {
+          console.error('Failed to store locally:', error);
+          if (!supabaseSuccess) {
+            throw new Error('Failed to save API key. Please check your connection and try again.');
+          }
+        }
       }
 
       // Update settings
       setSettings({ openAIApiKey: apiKey });
       
-      // Navigation will happen automatically via App.tsx routing
+      // Initialize OpenAI service
+      openAIService.initialize(apiKey);
+      
+      // Navigate to dashboard
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 100);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save API key');
     } finally {
@@ -36,11 +86,22 @@ export const Setup: React.FC = () => {
     }
   };
 
+  if (isCheckingKey) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Checking for existing configuration...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h1 className="text-center text-3xl font-bold text-gray-900">
-          Welcome to MyGranola
+          Welcome to MeetingMind
         </h1>
         <p className="mt-2 text-center text-sm text-gray-600">
           Your AI-powered meeting assistant

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Meeting, Note, ActionItem, Settings } from '../types';
+import { Meeting, Note, ActionItem, Settings, Reminder } from '../types';
 
 interface AppState {
   // User
@@ -16,6 +16,7 @@ interface AppState {
   currentMeeting: Meeting | null;
   addMeeting: (meeting: Meeting) => void;
   updateMeeting: (id: string, updates: Partial<Meeting>) => void;
+  deleteMeeting: (id: string) => void;
   setCurrentMeeting: (meeting: Meeting | null) => void;
   
   // Notes
@@ -29,6 +30,14 @@ interface AppState {
   addActionItem: (item: ActionItem) => void;
   updateActionItem: (id: string, updates: Partial<ActionItem>) => void;
   getActionItemsByDate: (date: string) => ActionItem[];
+  
+  // Reminders
+  reminders: Reminder[];
+  addReminder: (reminder: Reminder) => void;
+  updateReminder: (id: string, updates: Partial<Reminder>) => void;
+  deleteReminder: (id: string) => void;
+  getRemindersByMeetingId: (meetingId: string) => Reminder[];
+  getPendingReminders: () => Reminder[];
   
   // Recording state
   isRecording: boolean;
@@ -67,6 +76,14 @@ export const useStore = create<AppState>()(
             m.id === id ? { ...m, ...updates } : m
           ),
         })),
+      deleteMeeting: (id) =>
+        set((state) => ({
+          meetings: state.meetings.filter((m) => m.id !== id),
+          // Also remove related notes, action items, and reminders
+          notes: state.notes.filter((n) => n.meetingId !== id),
+          actionItems: state.actionItems.filter((a) => a.meetingId !== id),
+          reminders: state.reminders.filter((r) => r.meetingId !== id),
+        })),
       setCurrentMeeting: (meeting) =>
         set({ currentMeeting: meeting }),
       
@@ -104,6 +121,34 @@ export const useStore = create<AppState>()(
         return items.filter((item) => item.date === date);
       },
       
+      // Reminders
+      reminders: [],
+      addReminder: (reminder) =>
+        set((state) => ({
+          reminders: [...state.reminders, reminder],
+        })),
+      updateReminder: (id, updates) =>
+        set((state) => ({
+          reminders: state.reminders.map((r) =>
+            r.id === id ? { ...r, ...updates } : r
+          ),
+        })),
+      deleteReminder: (id) =>
+        set((state) => ({
+          reminders: state.reminders.filter((r) => r.id !== id),
+        })),
+      getRemindersByMeetingId: (meetingId) => {
+        const reminders = get().reminders;
+        return reminders.filter((r) => r.meetingId === meetingId);
+      },
+      getPendingReminders: () => {
+        const reminders = get().reminders;
+        const now = new Date();
+        return reminders.filter(
+          (r) => r.status === 'pending' && new Date(r.reminderDate) <= now
+        );
+      },
+      
       // Recording state
       isRecording: false,
       setIsRecording: (isRecording) => set({ isRecording }),
@@ -111,7 +156,7 @@ export const useStore = create<AppState>()(
       setRecordingStartTime: (time) => set({ recordingStartTime: time }),
     }),
     {
-      name: 'mygranola-storage',
+      name: 'meetingmind-storage',
       partialize: (state) => ({
         settings: {
           ...state.settings,
@@ -120,6 +165,7 @@ export const useStore = create<AppState>()(
         meetings: state.meetings,
         notes: state.notes,
         actionItems: state.actionItems,
+        reminders: state.reminders,
       }),
     }
   )
