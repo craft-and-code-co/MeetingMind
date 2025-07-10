@@ -1,6 +1,7 @@
 import { notificationService } from './notifications';
 
 export interface MeetingDetectionResult {
+  id: string;
   platform: string;
   meetingTitle?: string;
   confidence: number;
@@ -11,9 +12,25 @@ export class MeetingDetectionService {
   private static instance: MeetingDetectionService;
   private isMonitoring = false;
   private monitoringInterval: NodeJS.Timeout | null = null;
-  private lastDetectedMeeting: MeetingDetectionResult | null = null;
+  private lastDetectedMeetings: Set<string> = new Set();
+  private onMeetingDetectedCallback?: (meeting: MeetingDetectionResult) => void;
+  private cleanupFunctions: Array<() => void> = [];
 
-  private constructor() {}
+  private constructor() {
+    // Set up Electron event listeners if available
+    if (window.electronAPI) {
+      const cleanup1 = window.electronAPI.onMeetingDetectedNotificationClicked?.((event, meeting) => {
+        this.onMeetingDetectedCallback?.(meeting);
+      });
+      
+      const cleanup2 = window.electronAPI.onStartRecordingFromNotification?.((event, meeting) => {
+        this.onMeetingDetectedCallback?.(meeting);
+      });
+
+      if (cleanup1) this.cleanupFunctions.push(cleanup1);
+      if (cleanup2) this.cleanupFunctions.push(cleanup2);
+    }
+  }
 
   static getInstance(): MeetingDetectionService {
     if (!MeetingDetectionService.instance) {
@@ -26,22 +43,49 @@ export class MeetingDetectionService {
     if (this.isMonitoring) return;
 
     this.isMonitoring = true;
-    this.monitoringInterval = setInterval(async () => {
-      const result = await this.detectMeeting();
-      
-      if (result && result.isActive && result.confidence > 0.7) {
-        // Only notify if this is a new meeting detection
-        if (!this.lastDetectedMeeting || 
-            this.lastDetectedMeeting.platform !== result.platform ||
-            !this.lastDetectedMeeting.isActive) {
+    
+    // Start native meeting detection if available
+    if (window.electronAPI?.startMeetingDetection) {
+      try {
+        await window.electronAPI.startMeetingDetection();
+        
+        // Listen for meeting updates from native detection
+        const cleanup = window.electronAPI.onMeetingDetectionUpdate((event, meetings) => {
+          meetings.forEach(meeting => {
+            if (!this.lastDetectedMeetings.has(meeting.id) && meeting.isActive) {
+              this.lastDetectedMeetings.add(meeting.id);
+              this.onMeetingDetected(meeting);
+            }
+          });
           
-          await this.onMeetingDetected(result);
-        }
-        this.lastDetectedMeeting = result;
-      } else if (this.lastDetectedMeeting?.isActive) {
-        // Meeting ended
-        this.lastDetectedMeeting = null;
+          // Clean up ended meetings
+          const currentIds = new Set(meetings.map(m => m.id));
+          const lastDetectedArray = Array.from(this.lastDetectedMeetings);
+          lastDetectedArray.forEach(id => {
+            if (!currentIds.has(id)) {
+              this.lastDetectedMeetings.delete(id);
+            }
+          });
+        });
+        
+        if (cleanup) this.cleanupFunctions.push(cleanup);
+      } catch (error) {
+        console.error('Failed to start native meeting detection:', error);
       }
+    }
+    
+    // Also start browser-based detection as fallback
+    this.monitoringInterval = setInterval(async () => {
+      const results = await this.detectBrowserMeetings();
+      
+      results.forEach(result => {
+        if (result.isActive && result.confidence > 0.7) {
+          if (!this.lastDetectedMeetings.has(result.id)) {
+            this.lastDetectedMeetings.add(result.id);
+            this.onMeetingDetected(result);
+          }
+        }
+      });
     }, 5000); // Check every 5 seconds
   }
 
@@ -50,30 +94,22 @@ export class MeetingDetectionService {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
     }
+    
+    // Stop native meeting detection if available
+    if (window.electronAPI?.stopMeetingDetection) {
+      window.electronAPI.stopMeetingDetection();
+    }
+    
+    // Clean up all event listeners
+    this.cleanupFunctions.forEach(cleanup => cleanup());
+    this.cleanupFunctions = [];
+    
     this.isMonitoring = false;
-    this.lastDetectedMeeting = null;
+    this.lastDetectedMeetings.clear();
   }
 
-  private async detectMeeting(): Promise<MeetingDetectionResult | null> {
-    try {
-      // Check for common meeting platforms in browser tabs
-      const platforms = await this.detectBrowserMeetings();
-      
-      if (platforms.length > 0) {
-        return platforms[0]; // Return the first detected platform
-      }
-
-      // Check for desktop meeting apps (would need Electron APIs)
-      const desktopMeeting = await this.detectDesktopMeetings();
-      if (desktopMeeting) {
-        return desktopMeeting;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Meeting detection error:', error);
-      return null;
-    }
+  setOnMeetingDetectedCallback(callback: (meeting: MeetingDetectionResult) => void): void {
+    this.onMeetingDetectedCallback = callback;
   }
 
   private async detectBrowserMeetings(): Promise<MeetingDetectionResult[]> {
@@ -86,6 +122,7 @@ export class MeetingDetectionService {
     // Zoom
     if (hostname.includes('zoom.us') || currentUrl.includes('zoom.us/j/')) {
       detectedMeetings.push({
+        id: 'zoom-browser',
         platform: 'Zoom',
         confidence: 0.9,
         isActive: this.isZoomMeetingActive(),
@@ -96,6 +133,7 @@ export class MeetingDetectionService {
     // Microsoft Teams
     if (hostname.includes('teams.microsoft.com') || hostname.includes('teams.live.com')) {
       detectedMeetings.push({
+        id: 'teams-browser',
         platform: 'Microsoft Teams',
         confidence: 0.9,
         isActive: this.isTeamsMeetingActive(),
@@ -106,6 +144,7 @@ export class MeetingDetectionService {
     // Google Meet
     if (hostname.includes('meet.google.com')) {
       detectedMeetings.push({
+        id: 'google-meet-browser',
         platform: 'Google Meet',
         confidence: 0.9,
         isActive: this.isGoogleMeetActive(),
@@ -116,6 +155,7 @@ export class MeetingDetectionService {
     // Slack
     if (hostname.includes('slack.com') && currentUrl.includes('/huddle/')) {
       detectedMeetings.push({
+        id: 'slack-browser',
         platform: 'Slack',
         confidence: 0.8,
         isActive: this.isSlackHuddleActive(),
@@ -126,11 +166,6 @@ export class MeetingDetectionService {
     return detectedMeetings;
   }
 
-  private async detectDesktopMeetings(): Promise<MeetingDetectionResult | null> {
-    // This would require Electron APIs to detect running applications
-    // For now, we'll return null as this is a browser-based detection
-    return null;
-  }
 
   private isZoomMeetingActive(): boolean {
     // Check for Zoom meeting indicators
@@ -183,6 +218,9 @@ export class MeetingDetectionService {
     // Send notification about detected meeting
     await notificationService.notifyMeetingDetected(result.platform);
     
+    // Call the callback if set
+    this.onMeetingDetectedCallback?.(result);
+    
     // Dispatch custom event that the app can listen to
     const event = new CustomEvent('meetingDetected', {
       detail: result
@@ -194,8 +232,8 @@ export class MeetingDetectionService {
     return this.isMonitoring;
   }
 
-  getLastDetectedMeeting(): MeetingDetectionResult | null {
-    return this.lastDetectedMeeting;
+  getLastDetectedMeetings(): string[] {
+    return Array.from(this.lastDetectedMeetings);
   }
 }
 

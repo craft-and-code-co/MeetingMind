@@ -6,7 +6,6 @@ import { useStore } from '../store/useStore';
 import { ActionItem } from '../types';
 
 export const ActionItems: React.FC = () => {
-  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const { actionItems, updateActionItem, meetings } = useStore();
@@ -66,43 +65,21 @@ export const ActionItems: React.FC = () => {
     return meeting?.title || 'Unknown Meeting';
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Action Items</h1>
-            <nav className="flex space-x-4">
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Dashboard
-              </button>
-              <button 
-                onClick={() => navigate('/action-items')}
-                className="text-gray-900 bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Action Items
-              </button>
-              <button 
-                onClick={() => navigate('/reminders')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Reminders
-              </button>
-              <button 
-                onClick={() => navigate('/settings')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Settings
-              </button>
-            </nav>
-          </div>
-        </div>
-      </header>
+  const formatDueDate = (dueDate: string | null | undefined) => {
+    if (!dueDate) return null;
+    try {
+      const date = new Date(dueDate);
+      if (isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+      return format(date, 'MMM d');
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  return (
+    <div className="max-w-none mx-auto px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Calendar */}
           <div className="lg:col-span-2">
@@ -140,7 +117,7 @@ export const ActionItems: React.FC = () => {
                 
                 <div className="grid grid-cols-7 gap-1">
                   {calendarDays.map((day, index) => {
-                    if (!day) {
+                    if (!day || !(day instanceof Date) || isNaN(day.getTime())) {
                       return <div key={`empty-${index}`} className="h-24" />;
                     }
                     
@@ -223,9 +200,9 @@ export const ActionItems: React.FC = () => {
                           <p className="text-xs text-gray-500 mt-1">
                             From: {getMeetingTitle(item.meetingId)}
                           </p>
-                          {item.dueDate && (
+                          {item.dueDate && formatDueDate(item.dueDate) && (
                             <p className="text-xs text-gray-500">
-                              Due: {format(new Date(item.dueDate), 'MMM d')}
+                              Due: {formatDueDate(item.dueDate)}
                             </p>
                           )}
                         </div>
@@ -257,7 +234,6 @@ export const ActionItems: React.FC = () => {
             </p>
           </div>
         </div>
-      </main>
     </div>
   );
 };

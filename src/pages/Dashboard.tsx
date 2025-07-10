@@ -1,7 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, MicrophoneIcon, DocumentTextIcon, StopIcon, ArrowRightOnRectangleIcon, TrashIcon, MagnifyingGlassIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { 
+  CalendarIcon, 
+  MicrophoneIcon, 
+  DocumentTextIcon, 
+  StopIcon, 
+  TrashIcon,
+  BellIcon,
+  CheckCircleIcon,
+  FolderIcon
+} from '@heroicons/react/24/outline';
 import { useStore } from '../store/useStore';
 import { AudioRecorder } from '../components/AudioRecorder';
 import { TranscriptionWidget } from '../components/TranscriptionWidget';
@@ -11,16 +20,16 @@ import { TemplateSelector } from '../components/TemplateSelector';
 import { KeyboardShortcuts } from '../components/KeyboardShortcuts';
 import { SystemTray } from '../components/SystemTray';
 import { RecordingIndicator } from '../components/RecordingIndicator';
+import { Card, CardHeader, CardBody, StatCard } from '../components/Card';
 import { notificationService } from '../services/notifications';
 import { meetingDetectionService } from '../services/meetingDetection';
 import { openAIService } from '../services/openai';
 import { authService } from '../services/supabase';
-import { generateSampleData } from '../utils/sampleData';
 import { meetingTemplates } from '../data/meetingTemplates';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { meetings, currentMeeting, setCurrentMeeting, addMeeting, updateMeeting, deleteMeeting, addActionItem, addNote } = useStore();
+  const { meetings, currentMeeting, setCurrentMeeting, addMeeting, updateMeeting, deleteMeeting, addActionItem, addNote, reminders, notes, actionItems } = useStore();
   const [processingAudio, setProcessingAudio] = useState(false);
   const [currentTranscription, setCurrentTranscription] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -34,14 +43,20 @@ export const Dashboard: React.FC = () => {
   const todaysMeetings = meetings.filter(
     (m) => m.date === format(new Date(), 'yyyy-MM-dd')
   );
+  
+  // Calculate stats
+  const pendingReminders = reminders.filter(r => r.status === 'pending').length;
+  const pendingActionItems = actionItems.filter(item => item.status === 'pending').length;
 
   // Create a ref to store the recording state for the useEffect
   const [isRecording, setIsRecording] = useState(false);
+  const isRecordingRef = React.useRef(isRecording);
   
-  // Keep ref in sync with current meeting
+  // Keep refs in sync
   React.useEffect(() => {
     currentMeetingRef.current = currentMeeting;
-  }, [currentMeeting]);
+    isRecordingRef.current = isRecording;
+  }, [currentMeeting, isRecording]);
 
   const audioRecorder = AudioRecorder({
     onRecordingComplete: useCallback(async (audioBlob: Blob) => {
@@ -152,32 +167,79 @@ export const Dashboard: React.FC = () => {
     if (window.electronAPI) {
       // Update tray menu when recording state changes
       window.electronAPI.updateTrayMenu?.({ isRecording });
-      
+      // Update application menu when recording state changes
+      window.electronAPI.updateApplicationMenu?.({ isRecording });
+    }
+  }, [isRecording]);
+
+  // Set up IPC listeners once (separate from recording state updates)
+  React.useEffect(() => {
+    if (window.electronAPI) {
       // Listen for tray toggle recording events
       const handleTrayToggle = () => {
-        if (isRecording) {
+        if (isRecordingRef.current) {
           handleStopRecording();
         } else {
           handleStartRecording();
         }
       };
       
-      window.electronAPI.onTrayToggleRecording?.(handleTrayToggle);
+      const cleanupTrayToggle = window.electronAPI.onTrayToggleRecording?.(handleTrayToggle);
+      
+      // Listen for meeting detection from native notifications
+      const handleMeetingDetectedFromNotification = (event: any, meeting: any) => {
+        if (settings.meetingDetectionNotifications !== false) {
+          // Show the app
+          if (window.electronAPI?.show) {
+            window.electronAPI.show();
+          }
+        }
+        
+        // Auto-start recording if enabled and no meeting is currently being recorded
+        if (settings.autoStartRecording && !isRecordingRef.current) {
+          setTimeout(() => {
+            handleStartRecording();
+          }, 500); // Quick start since user clicked the notification
+        }
+      };
+      
+      const cleanupMeetingDetected = window.electronAPI.onMeetingDetectedNotificationClicked?.(handleMeetingDetectedFromNotification);
+      const cleanupStartRecording = window.electronAPI.onStartRecordingFromNotification?.(handleMeetingDetectedFromNotification);
+      
+      return () => {
+        cleanupTrayToggle?.();
+        cleanupMeetingDetected?.();
+        cleanupStartRecording?.();
+      };
     }
+  }, []); // Empty dependency array - only run once
+
+  // Meeting detection effect
+  React.useEffect(() => {
     
-    // Start meeting detection if auto-start is enabled
-    if (settings.autoStartRecording) {
+    // Start meeting detection if auto-start is enabled or meeting detection is enabled
+    if (settings.autoStartRecording || settings.meetingDetectionNotifications !== false) {
       meetingDetectionService.startMonitoring();
+      
+      // Set up callback for meeting detection
+      meetingDetectionService.setOnMeetingDetectedCallback((meeting) => {
+        // Auto-start recording if enabled and no meeting is currently being recorded
+        if (settings.autoStartRecording && !isRecordingRef.current) {
+          setTimeout(() => {
+            handleStartRecording();
+          }, 2000); // Give user 2 seconds to see the notification
+        }
+      });
     }
     
-    // Listen for meeting detection events
+    // Listen for meeting detection events (fallback for web-based detection)
     const handleMeetingDetected = (event: CustomEvent) => {
       if (settings.meetingDetectionNotifications !== false) {
         // Notification is already sent by the detection service
       }
       
       // Auto-start recording if enabled and no meeting is currently being recorded
-      if (settings.autoStartRecording && !isRecording) {
+      if (settings.autoStartRecording && !isRecordingRef.current) {
         setTimeout(() => {
           handleStartRecording();
         }, 2000); // Give user 2 seconds to see the notification
@@ -190,7 +252,7 @@ export const Dashboard: React.FC = () => {
       window.removeEventListener('meetingDetected', handleMeetingDetected as EventListener);
       meetingDetectionService.stopMonitoring();
     };
-  }, [isRecording, settings.autoStartRecording, settings.meetingDetectionNotifications]);
+  }, [settings.autoStartRecording, settings.meetingDetectionNotifications]);
 
   const handleStopRecording = () => {
     audioRecorder.stopRecording();
@@ -244,13 +306,6 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  // Temporary function to load sample data
-  const loadSampleData = () => {
-    const { meetings: sampleMeetings, actionItems: sampleActionItems } = generateSampleData();
-    sampleMeetings.forEach(meeting => addMeeting(meeting));
-    sampleActionItems.forEach(item => addActionItem(item));
-    alert('Sample data loaded! Check the Action Items page.');
-  };
 
   const handleSignOut = async () => {
     try {
@@ -270,72 +325,47 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">MeetingMind</h1>
-            <nav className="flex space-x-4">
-              <button 
-                onClick={() => navigate('/search')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center"
-              >
-                <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
-                Search
-              </button>
-              <button 
-                onClick={() => navigate('/analytics')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center"
-              >
-                <ChartBarIcon className="h-4 w-4 mr-1" />
-                Analytics
-              </button>
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="text-gray-900 bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Dashboard
-              </button>
-              <button 
-                onClick={() => navigate('/action-items')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Action Items
-              </button>
-              <button 
-                onClick={() => navigate('/reminders')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Reminders
-              </button>
-              <button 
-                onClick={() => navigate('/settings')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Settings
-              </button>
-              <button 
-                onClick={handleSignOut}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center"
-              >
-                <ArrowRightOnRectangleIcon className="h-4 w-4 mr-1" />
-                Sign Out
-              </button>
-            </nav>
-          </div>
+    <>
+      <div className="max-w-none mx-auto px-6 py-6">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatCard
+            icon={<MicrophoneIcon className="h-8 w-8" />}
+            iconColor="text-indigo-600"
+            label="Total Meetings"
+            value={meetings.length}
+          />
+          
+          <StatCard
+            icon={<DocumentTextIcon className="h-8 w-8" />}
+            iconColor="text-blue-600"
+            label="Total Notes"
+            value={notes.length}
+          />
+          
+          <StatCard
+            icon={<CheckCircleIcon className="h-8 w-8" />}
+            iconColor="text-green-600"
+            label="Pending Actions"
+            value={pendingActionItems}
+          />
+          
+          <StatCard
+            icon={<BellIcon className="h-8 w-8" />}
+            iconColor="text-purple-600"
+            label="Active Reminders"
+            value={pendingReminders}
+          />
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Recording Control */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <Card className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {audioRecorder.isRecording ? 'Recording in Progress' : 'Start New Meeting'}
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                 {audioRecorder.isRecording
                   ? `Recording time: ${audioRecorder.recordingTime}`
                   : 'Click record to capture your meeting audio'}
@@ -365,54 +395,66 @@ export const Dashboard: React.FC = () => {
               ) : (
                 <>
                   <MicrophoneIcon className="h-5 w-5 mr-2" />
-                  Start Recording
+                  Record
                 </>
               )}
             </button>
             {audioRecorder.isRecording && (
               <button
                 onClick={() => setShowLiveTranscript(!showLiveTranscript)}
-                className="ml-3 inline-flex items-center px-4 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="ml-3 inline-flex items-center px-4 py-3 border border-gray-300 dark:border-slate-600 text-base font-medium rounded-md text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 <DocumentTextIcon className="h-5 w-5 mr-2" />
                 {showLiveTranscript ? 'Hide' : 'Show'} Live Transcript
               </button>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Today's Meetings */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+        <Card noPadding>
+          <CardHeader>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <CalendarIcon className="h-5 w-5 mr-2" />
               Today's Meetings
             </h3>
-          </div>
-          <div className="divide-y divide-gray-200">
+          </CardHeader>
+          <div className="divide-y divide-gray-200 dark:divide-slate-700">
             {todaysMeetings.length === 0 ? (
               <div className="px-6 py-12 text-center">
-                <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  No meetings yet
+                <div className="mx-auto h-24 w-24 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center">
+                  <CalendarIcon className="h-12 w-12 text-gray-400 dark:text-slate-500" />
+                </div>
+                <h3 className="mt-4 text-base font-medium text-gray-900 dark:text-white">
+                  No meetings recorded today
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Start recording to capture your first meeting
+                <p className="mt-2 text-sm text-gray-500 dark:text-slate-400 max-w-sm mx-auto">
+                  Click the "Record" button above to start capturing your meeting audio and get AI-powered notes.
                 </p>
+                <div className="mt-6">
+                  <button
+                    onClick={handleStartRecording}
+                    disabled={processingAudio || audioRecorder.isRecording}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <MicrophoneIcon className="h-4 w-4 mr-2" />
+                    Start Your First Recording
+                  </button>
+                </div>
               </div>
             ) : (
               todaysMeetings.map((meeting) => (
                 <div
                   key={meeting.id}
                   onClick={() => navigate(`/meeting/${meeting.id}`)}
-                  className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
+                  className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h4 className="text-sm font-medium text-gray-900">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">
                         {meeting.title}
                       </h4>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 dark:text-slate-400">
                         {format(meeting.startTime, 'h:mm a')}
                         {meeting.endTime &&
                           ` - ${format(meeting.endTime, 'h:mm a')}`}
@@ -443,18 +485,9 @@ export const Dashboard: React.FC = () => {
               ))
             )}
           </div>
-        </div>
+        </Card>
 
-        {/* Temporary Sample Data Button */}
-        <div className="mt-8 text-center">
-          <button
-            onClick={loadSampleData}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Load Sample Data (For Testing)
-          </button>
-        </div>
-      </main>
+      </div>
 
       {/* Floating Transcription Widget */}
       <TranscriptionWidget
@@ -465,8 +498,7 @@ export const Dashboard: React.FC = () => {
         isTranscribing={isTranscribing}
       />
       
-      {/* Reminders Widget */}
-      <RemindersWidget />
+      {/* Removed floating RemindersWidget - now integrated into dashboard */}
       
       {/* Permissions Dialog */}
       <PermissionsDialog
@@ -480,10 +512,10 @@ export const Dashboard: React.FC = () => {
       
       {/* Template Selector Dialog */}
       {showTemplateSelector && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">
+        <div className="fixed inset-0 bg-gray-500 dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white">
                 Choose a Meeting Template
               </h2>
             </div>
@@ -497,10 +529,10 @@ export const Dashboard: React.FC = () => {
                 }}
               />
             </div>
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+            <div className="px-6 py-4 bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
               <button
                 onClick={() => setShowTemplateSelector(false)}
-                className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+                className="w-full text-center text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
               >
                 Cancel
               </button>
@@ -533,12 +565,12 @@ export const Dashboard: React.FC = () => {
       {/* Live Transcript Modal */}
       {showLiveTranscript && audioRecorder.isRecording && (
         <div className="fixed inset-0 z-40 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
-            <div className="px-6 py-4 border-b flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Live Transcript</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="px-6 py-4 border-b dark:border-slate-700 flex justify-between items-center">
+              <h3 className="text-lg font-semibold dark:text-white">Live Transcript</h3>
               <button
                 onClick={() => setShowLiveTranscript(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-400"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -546,24 +578,24 @@ export const Dashboard: React.FC = () => {
               </button>
             </div>
             <div className="flex-1 p-6 overflow-y-auto">
-              <div className="text-gray-600">
+              <div className="text-gray-600 dark:text-slate-400">
                 <div className="text-center">
-                  <MicrophoneIcon className="h-12 w-12 text-gray-400 mx-auto mb-2 animate-pulse" />
-                  <p className="text-lg mb-2">Recording in Progress</p>
-                  <p className="text-sm text-gray-500 mb-4">Live transcription is coming soon!</p>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-                    <p className="text-sm text-blue-800">
+                  <MicrophoneIcon className="h-12 w-12 text-gray-400 dark:text-slate-600 mx-auto mb-2 animate-pulse" />
+                  <p className="text-lg mb-2 dark:text-white">Recording in Progress</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">Live transcription is coming soon!</p>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 max-w-md mx-auto">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
                       <strong>Note:</strong> Your full meeting will be transcribed after you stop recording. 
                       Live transcription requires additional setup and will be available in a future update.
                     </p>
                   </div>
-                  <p className="text-xs text-gray-400 mt-4">Recording time: {audioRecorder.recordingTime}</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-4">Recording time: {audioRecorder.recordingTime}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

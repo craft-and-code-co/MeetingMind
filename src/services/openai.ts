@@ -3,12 +3,17 @@ import { ActionItem } from '../types';
 
 export class OpenAIService {
   private client: OpenAI | null = null;
+  private defaultModel: string = 'gpt-4o';
 
   initialize(apiKey: string) {
     this.client = new OpenAI({
       apiKey,
       dangerouslyAllowBrowser: true, // For development - in production, use a backend
     });
+  }
+
+  setDefaultModel(model: string) {
+    this.defaultModel = model;
   }
 
   async transcribeAudio(audioFile: File): Promise<string> {
@@ -79,7 +84,7 @@ Respond in JSON format:
 }`;
 
     const response = await this.client.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: this.defaultModel,
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
       temperature: 0.3,
@@ -114,7 +119,7 @@ Generate a concise, professional email that:
 `;
 
     const response = await this.client.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: this.defaultModel,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.5,
     });
@@ -152,7 +157,7 @@ ${transcript.substring(0, 1000)}...
 Generate only the title, nothing else.`;
 
     const response = await this.client.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: this.defaultModel,
       messages: [{ role: 'user', content: prompt }],
       temperature: style === 'creative' ? 0.8 : 0.5,
       max_tokens: 50,
@@ -212,7 +217,7 @@ Respond in JSON format:
 }`;
 
     const response = await this.client.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: this.defaultModel,
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
       temperature: 0.3,

@@ -26,8 +26,8 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
             }
             rounded-lg border-2 transition-all
             ${selectedTemplateId === template.id
-              ? 'border-indigo-500 bg-indigo-50'
-              : 'border-gray-200 hover:border-gray-300 bg-white'
+              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-slate-800'
             }
           `}
         >
@@ -36,14 +36,12 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
               {template.icon}
             </span>
             <div className={showInSettings ? 'text-left' : ''}>
-              <h3 className="text-sm font-medium text-gray-900">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                 {template.name}
               </h3>
-              {!showInSettings && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {template.description}
-                </p>
-              )}
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                {template.description}
+              </p>
             </div>
           </div>
           {selectedTemplateId === template.id && (

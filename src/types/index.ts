@@ -9,6 +9,7 @@ export interface Meeting {
   isRecording?: boolean;
   audioPath?: string;
   templateId?: string;
+  folderId?: string;
 }
 
 export interface Note {
@@ -46,6 +47,10 @@ export interface Settings {
   meetingDetectionNotifications?: boolean;
   actionItemNotifications?: boolean;
   reminderNotifications?: boolean;
+  theme?: 'light' | 'dark';
+  openAIModel?: 'gpt-4o-mini' | 'gpt-4o' | 'gpt-4-turbo-preview';
+  showMenuBar?: boolean;
+  menuBarAlwaysVisible?: boolean;
 }
 
 export interface Reminder {
@@ -58,6 +63,14 @@ export interface Reminder {
   reminderDate: string;
   status: 'pending' | 'sent' | 'dismissed';
   priority: 'low' | 'medium' | 'high';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  color: string;
   createdAt: Date;
   updatedAt: Date;
 }

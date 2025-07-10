@@ -13,35 +13,11 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   highlights = [],
   className = '' 
 }) => {
-  // Process content to add highlight markers
-  let processedContent = content;
-  
-  if (highlights.length > 0) {
-    highlights.forEach((highlight) => {
-      const highlightClass = getHighlightClass(highlight.type);
-      const icon = getHighlightIcon(highlight.type);
-      
-      // Escape special regex characters in the text
-      const escapedText = highlight.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      
-      // Wrap the highlighted text with a special marker
-      processedContent = processedContent.replace(
-        new RegExp(escapedText, 'gi'),
-        `<mark class="${highlightClass}">${icon} $&</mark>`
-      );
-    });
-  }
-
   return (
     <div className={`prose prose-sm max-w-none ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          // Custom rendering for marks
-          mark: ({ children, ...props }) => {
-            const className = (props as any).className || '';
-            return <mark className={`${className} px-1 py-0.5 rounded`}>{children}</mark>;
-          },
           // Style adjustments for other elements
           h1: ({ children }) => <h1 className="text-2xl font-bold mb-4">{children}</h1>,
           h2: ({ children }) => <h2 className="text-xl font-semibold mb-3 mt-6">{children}</h2>,
@@ -67,10 +43,28 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
             );
           },
         }}
-        // Allow HTML for highlights
       >
-        {processedContent}
+        {content}
       </ReactMarkdown>
+      
+      {/* Separate highlights section */}
+      {highlights.length > 0 && (
+        <div className="mt-6 border-t pt-4">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Highlights</h4>
+          <div className="space-y-2">
+            {highlights.map((highlight, index) => (
+              <div
+                key={index}
+                className={`p-2 rounded-md ${getHighlightClass(highlight.type)}`}
+              >
+                <span className="text-sm">
+                  {getHighlightIcon(highlight.type)} {highlight.text}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

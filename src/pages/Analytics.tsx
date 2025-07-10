@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
-import { ArrowLeftIcon, ClockIcon, MicrophoneIcon, DocumentTextIcon, CheckCircleIcon, CalendarDaysIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
+import { ClockIcon, MicrophoneIcon, DocumentTextIcon, CheckCircleIcon, CalendarDaysIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { useStore } from '../store/useStore';
 
 interface AnalyticsStats {
@@ -18,14 +18,21 @@ interface AnalyticsStats {
 }
 
 export const Analytics: React.FC = () => {
-  const navigate = useNavigate();
   const { meetings, actionItems, notes } = useStore();
 
   const stats = useMemo<AnalyticsStats>(() => {
     const completedMeetings = meetings.filter(m => m.endTime);
     const totalRecordingTime = completedMeetings.reduce((total, meeting) => {
       if (meeting.startTime && meeting.endTime) {
-        return total + (meeting.endTime.getTime() - meeting.startTime.getTime());
+        const startTime = meeting.startTime instanceof Date ? meeting.startTime : new Date(meeting.startTime);
+        const endTime = meeting.endTime instanceof Date ? meeting.endTime : new Date(meeting.endTime);
+        
+        // Check if dates are valid
+        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+          return total;
+        }
+        
+        return total + (endTime.getTime() - startTime.getTime());
       }
       return total;
     }, 0);
@@ -46,7 +53,15 @@ export const Analytics: React.FC = () => {
 
     const averageNotesPerMeeting = meetings.length > 0 ? notes.length / meetings.length : 0;
 
-    // Calculate meetings by day of week
+    // Calculate meetings by day of week (last 30 days only)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentMeetings = meetings.filter(meeting => {
+      const meetingDate = new Date(meeting.date);
+      return meetingDate >= thirtyDaysAgo;
+    });
+
     const meetingsByDay: { [key: string]: number } = {};
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     
@@ -54,14 +69,17 @@ export const Analytics: React.FC = () => {
       meetingsByDay[day] = 0;
     });
 
-    meetings.forEach(meeting => {
+    recentMeetings.forEach(meeting => {
       const dayOfWeek = format(new Date(meeting.date), 'EEEE');
       meetingsByDay[dayOfWeek]++;
     });
 
-    const mostProductiveDay = Object.keys(meetingsByDay).reduce((a, b) => 
-      meetingsByDay[a] > meetingsByDay[b] ? a : b
-    );
+    // Only calculate most productive day if there are recent meetings
+    const mostProductiveDay = recentMeetings.length > 0 
+      ? Object.keys(meetingsByDay).reduce((a, b) => 
+          meetingsByDay[a] > meetingsByDay[b] ? a : b
+        )
+      : 'No recent meetings';
 
     return {
       totalMeetings: meetings.length,
@@ -107,25 +125,7 @@ export const Analytics: React.FC = () => {
   const weeklyData = getWeeklyMeetingData();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="mr-4 p-2 hover:bg-gray-100 rounded-md"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-              </button>
-              <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-none mx-auto px-6 py-6">
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
@@ -188,20 +188,49 @@ export const Analytics: React.FC = () => {
             </h2>
           </div>
           <div className="p-6">
-            <div className="flex items-end justify-between h-40">
-              {weeklyData.map((day, index) => (
-                <div key={index} className="flex flex-col items-center">
-                  <div 
-                    className="bg-indigo-600 rounded-t-sm mb-2 w-12 transition-all duration-300"
-                    style={{ 
-                      height: `${Math.max(day.meetings * 20, 4)}px`,
-                      minHeight: '4px'
-                    }}
-                  />
-                  <span className="text-sm font-medium text-gray-900">{day.meetings}</span>
-                  <span className="text-xs text-gray-500">{day.day}</span>
-                </div>
-              ))}
+            <div className="flex items-end justify-between h-48 relative">
+              {/* Y-axis lines */}
+              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                {[4, 3, 2, 1, 0].map((val) => (
+                  <div key={val} className="flex items-center">
+                    <span className="text-xs text-gray-400 w-4 text-right mr-2">{val * 2}</span>
+                    <div className="flex-1 border-t border-gray-100"></div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Bars */}
+              <div className="relative z-10 flex items-end justify-between h-full w-full pl-8">
+                {weeklyData.map((day, index) => {
+                  const maxHeight = 160; // pixels
+                  const maxMeetings = 8; // scale max
+                  const barHeight = Math.max((day.meetings / maxMeetings) * maxHeight, 4);
+                  
+                  return (
+                    <div key={index} className="flex flex-col items-center flex-1 mx-1">
+                      <div className="relative group cursor-pointer">
+                        {/* Tooltip */}
+                        {day.meetings > 0 && (
+                          <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                            {day.meetings} meeting{day.meetings !== 1 ? 's' : ''}
+                          </div>
+                        )}
+                        
+                        {/* Bar */}
+                        <div 
+                          className="bg-indigo-600 hover:bg-indigo-700 rounded-t-sm w-full transition-all duration-300"
+                          style={{ 
+                            height: `${barHeight}px`,
+                            minHeight: '4px',
+                            width: '40px'
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-600 mt-2 font-medium">{day.day}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -228,13 +257,15 @@ export const Analytics: React.FC = () => {
                 <span className="text-sm font-medium text-gray-900">{stats.meetingsThisWeek}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Most Productive Day</span>
+                <span className="text-sm text-gray-500">Most Productive Day (Last 30 Days)</span>
                 <span className="text-sm font-medium text-gray-900">{stats.mostProductiveDay}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">Average Notes per Meeting</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {stats.averageNotesPerMeeting.toFixed(1)}
+                  {stats.averageNotesPerMeeting % 1 === 0 
+                    ? stats.averageNotesPerMeeting.toFixed(0) 
+                    : stats.averageNotesPerMeeting.toFixed(1)}
                 </span>
               </div>
             </div>
@@ -282,7 +313,6 @@ export const Analytics: React.FC = () => {
             </div>
           </div>
         </div>
-      </main>
     </div>
   );
 };

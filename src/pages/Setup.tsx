@@ -132,8 +132,13 @@ export const Setup: React.FC = () => {
                 />
               </div>
               <p className="mt-2 text-sm text-gray-500">
-                Your API key will be stored securely on your device
+                Your API key will be stored securely on your device and used to transcribe your meetings
               </p>
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm text-blue-800">
+                  <strong>Need an API key?</strong> Sign up at OpenAI and create a new API key. You'll need to add billing information to use the transcription service.
+                </p>
+              </div>
             </div>
 
             {error && (
@@ -160,20 +165,33 @@ export const Setup: React.FC = () => {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white text-gray-500">
-                  Need an API key?
+                  Get your OpenAI API key
                 </span>
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 space-y-3">
+              <a
+                href="https://platform.openai.com/signup"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Sign up for OpenAI Account
+              </a>
               <a
                 href="https://platform.openai.com/api-keys"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                Get API Key from OpenAI
+                Create API Key (Existing Users)
               </a>
+              <div className="mt-4 text-center">
+                <p className="text-xs text-gray-500">
+                  After creating your account, you'll need to add billing information to use the Whisper API for transcription.
+                </p>
+              </div>
             </div>
           </div>
         </div>

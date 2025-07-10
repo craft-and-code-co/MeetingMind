@@ -76,37 +76,7 @@ export const Search: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Search</h1>
-            <nav className="flex space-x-4">
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Dashboard
-              </button>
-              <button 
-                onClick={() => navigate('/action-items')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Action Items
-              </button>
-              <button 
-                onClick={() => navigate('/search')}
-                className="text-gray-900 bg-gray-100 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Search
-              </button>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-none mx-auto px-6 py-6">
         {/* Search Bar */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="p-6">
@@ -178,15 +148,50 @@ export const Search: React.FC = () => {
         </div>
 
         {/* Results */}
-        {searchQuery && (
+        {!searchQuery ? (
+          <div className="bg-white rounded-lg shadow p-12 text-center">
+            <div className="mx-auto h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center">
+              <MagnifyingGlassIcon className="h-12 w-12 text-gray-400" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Search your meetings</h3>
+            <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+              Find anything across all your meetings, notes, and action items. Try searching for topics, participants, or keywords.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <span className="text-xs text-gray-500">Popular searches:</span>
+              {['next steps', 'decisions', 'action items', 'follow up'].map((term) => (
+                <button
+                  key={term}
+                  onClick={() => setSearchQuery(term)}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
           <div className="space-y-6">
             {totalResults === 0 ? (
               <div className="bg-white rounded-lg shadow p-12 text-center">
-                <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No results found</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Try adjusting your search query or filters
+                <div className="mx-auto h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center">
+                  <MagnifyingGlassIcon className="h-12 w-12 text-gray-400" />
+                </div>
+                <h3 className="mt-4 text-lg font-medium text-gray-900">No results found</h3>
+                <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+                  We couldn't find anything matching "{searchQuery}". Try different keywords or check your filters.
                 </p>
+                <div className="mt-6">
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSearchFilter('all');
+                    }}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Clear search
+                  </button>
+                </div>
               </div>
             ) : (
               <>
@@ -301,7 +306,6 @@ export const Search: React.FC = () => {
             )}
           </div>
         )}
-      </main>
     </div>
   );
 };

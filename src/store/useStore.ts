@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Meeting, Note, ActionItem, Settings, Reminder } from '../types';
+import { Meeting, Note, ActionItem, Settings, Reminder, Folder } from '../types';
 
 interface AppState {
   // User
@@ -10,6 +10,7 @@ interface AppState {
   // Settings
   settings: Settings;
   setSettings: (settings: Partial<Settings>) => void;
+  updateSettings: (updates: Partial<Settings>) => void;
   
   // Meetings
   meetings: Meeting[];
@@ -39,6 +40,12 @@ interface AppState {
   getRemindersByMeetingId: (meetingId: string) => Reminder[];
   getPendingReminders: () => Reminder[];
   
+  // Folders
+  folders: Folder[];
+  addFolder: (folder: Folder) => void;
+  updateFolder: (id: string, updates: Partial<Folder>) => void;
+  deleteFolder: (id: string) => void;
+  
   // Recording state
   isRecording: boolean;
   setIsRecording: (isRecording: boolean) => void;
@@ -57,10 +64,16 @@ export const useStore = create<AppState>()(
       settings: {
         audioQuality: 'medium',
         autoStartRecording: false,
+        theme: 'light',
+        openAIModel: 'gpt-4o',
       },
       setSettings: (newSettings) =>
         set((state) => ({
           settings: { ...state.settings, ...newSettings },
+        })),
+      updateSettings: (updates) =>
+        set((state) => ({
+          settings: { ...state.settings, ...updates },
         })),
       
       // Meetings
@@ -149,6 +162,27 @@ export const useStore = create<AppState>()(
         );
       },
       
+      // Folders
+      folders: [],
+      addFolder: (folder) =>
+        set((state) => ({
+          folders: [...state.folders, folder],
+        })),
+      updateFolder: (id, updates) =>
+        set((state) => ({
+          folders: state.folders.map((f) =>
+            f.id === id ? { ...f, ...updates } : f
+          ),
+        })),
+      deleteFolder: (id) =>
+        set((state) => ({
+          folders: state.folders.filter((f) => f.id !== id),
+          // Remove folder reference from meetings
+          meetings: state.meetings.map((m) =>
+            m.folderId === id ? { ...m, folderId: undefined } : m
+          ),
+        })),
+      
       // Recording state
       isRecording: false,
       setIsRecording: (isRecording) => set({ isRecording }),
@@ -166,6 +200,7 @@ export const useStore = create<AppState>()(
         notes: state.notes,
         actionItems: state.actionItems,
         reminders: state.reminders,
+        folders: state.folders,
       }),
     }
   )

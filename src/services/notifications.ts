@@ -41,10 +41,32 @@ export class NotificationService {
       return null;
     }
 
+    // Use native Electron notifications if available
+    if (window.electronAPI?.showNotification) {
+      try {
+        await window.electronAPI.showNotification({
+          title: options.title,
+          body: options.body,
+          icon: options.icon,
+          sound: options.silent ? undefined : 'default',
+          tag: options.tag,
+          actions: options.actions?.map(action => ({
+            type: 'button',
+            text: action.title
+          }))
+        });
+        return null; // Electron notifications don't return a Notification object
+      } catch (error) {
+        console.error('Failed to show native notification:', error);
+        // Fall back to web notifications
+      }
+    }
+
+    // Fall back to web notifications
     if ('Notification' in window) {
       const notification = new Notification(options.title, {
         body: options.body,
-        icon: options.icon || '/favicon.ico',
+        icon: options.icon || '/logo.png',
         tag: options.tag,
         requireInteraction: options.requireInteraction,
         silent: options.silent,
@@ -63,7 +85,7 @@ export class NotificationService {
       title: 'Meeting Started',
       body: `Recording started for "${meetingTitle}"`,
       tag: 'meeting-start',
-      icon: '/favicon.ico',
+      icon: '/logo.png',
       requireInteraction: false
     });
   }
@@ -73,7 +95,7 @@ export class NotificationService {
       title: 'Meeting Ended',
       body: `Recording completed for "${meetingTitle}"`,
       tag: 'meeting-end',
-      icon: '/favicon.ico',
+      icon: '/logo.png',
       requireInteraction: false
     });
   }
@@ -83,7 +105,7 @@ export class NotificationService {
       title: 'Transcription Ready',
       body: `Transcription completed for "${meetingTitle}"`,
       tag: 'transcription-ready',
-      icon: '/favicon.ico',
+      icon: '/logo.png',
       requireInteraction: true
     });
   }
@@ -93,7 +115,7 @@ export class NotificationService {
       title: 'Action Item Due',
       body: `"${actionItem}" is due ${dueDate}`,
       tag: 'action-item-due',
-      icon: '/favicon.ico',
+      icon: '/logo.png',
       requireInteraction: true
     });
   }
@@ -103,7 +125,7 @@ export class NotificationService {
       title: 'Reminder',
       body: `${title}: ${description}`,
       tag: 'reminder-due',
-      icon: '/favicon.ico',
+      icon: '/logo.png',
       requireInteraction: true
     });
   }
@@ -113,7 +135,7 @@ export class NotificationService {
       title: 'Meeting Detected',
       body: `${platform} meeting detected. Click to start recording.`,
       tag: 'meeting-detected',
-      icon: '/favicon.ico',
+      icon: '/logo.png',
       requireInteraction: true
     });
   }

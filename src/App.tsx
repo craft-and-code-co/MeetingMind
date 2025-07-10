@@ -10,6 +10,7 @@ import { Auth } from './pages/Auth';
 import { Reminders } from './pages/Reminders';
 import { Search } from './pages/Search';
 import { Analytics } from './pages/Analytics';
+import { Layout } from './components/Layout';
 import { useStore } from './store/useStore';
 import { openAIService } from './services/openai';
 import { authService, databaseService } from './services/supabase';
@@ -40,6 +41,9 @@ function App() {
           // Check for API key in settings
           if (settings.openAIApiKey) {
             openAIService.initialize(settings.openAIApiKey);
+            if (settings.openAIModel) {
+              openAIService.setDefaultModel(settings.openAIModel);
+            }
             setHasApiKey(true);
           }
         } else {
@@ -54,6 +58,9 @@ function App() {
               if (storedKey) {
                 setSettings({ openAIApiKey: storedKey });
                 openAIService.initialize(storedKey);
+                if (settings.openAIModel) {
+                  openAIService.setDefaultModel(settings.openAIModel);
+                }
                 setHasApiKey(true);
               }
             } catch (error) {
@@ -67,6 +74,9 @@ function App() {
                 if (localKey) {
                   setSettings({ openAIApiKey: localKey });
                   openAIService.initialize(localKey);
+                  if (settings.openAIModel) {
+                    openAIService.setDefaultModel(settings.openAIModel);
+                  }
                   setHasApiKey(true);
                   // Sync to Supabase for future use
                   await databaseService.storeApiKey(user.id, localKey);
@@ -100,17 +110,20 @@ function App() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [setSettings, setUserId, hasApiKey, settings.openAIApiKey, skipAuth]);
+  }, [setSettings, setUserId, hasApiKey, settings.openAIApiKey, settings.openAIModel, skipAuth]);
 
   useEffect(() => {
     // Initialize OpenAI when settings change
     console.log('Settings API key changed:', !!settings.openAIApiKey);
     if (settings.openAIApiKey) {
       openAIService.initialize(settings.openAIApiKey);
+      if (settings.openAIModel) {
+        openAIService.setDefaultModel(settings.openAIModel);
+      }
       setHasApiKey(true);
       console.log('API key set, hasApiKey:', true);
     }
-  }, [settings.openAIApiKey]);
+  }, [settings.openAIApiKey, settings.openAIModel]);
 
   if (isLoading) {
     return (
@@ -155,7 +168,7 @@ function App() {
             element={
               !isAuthenticated ? <Navigate to="/auth" /> :
               !hasApiKey ? <Navigate to="/setup" /> :
-              <Dashboard />
+              <Layout><Dashboard /></Layout>
             }
           />
           <Route
@@ -163,7 +176,7 @@ function App() {
             element={
               !isAuthenticated ? <Navigate to="/auth" /> :
               !hasApiKey ? <Navigate to="/setup" /> :
-              <ActionItems />
+              <Layout><ActionItems /></Layout>
             }
           />
           <Route
@@ -171,7 +184,7 @@ function App() {
             element={
               !isAuthenticated ? <Navigate to="/auth" /> :
               !hasApiKey ? <Navigate to="/setup" /> :
-              <MeetingDetail />
+              <Layout><MeetingDetail /></Layout>
             }
           />
           <Route
@@ -179,7 +192,7 @@ function App() {
             element={
               !isAuthenticated ? <Navigate to="/auth" /> :
               !hasApiKey ? <Navigate to="/setup" /> :
-              <Settings />
+              <Layout><Settings /></Layout>
             }
           />
           <Route
@@ -187,7 +200,7 @@ function App() {
             element={
               !isAuthenticated ? <Navigate to="/auth" /> :
               !hasApiKey ? <Navigate to="/setup" /> :
-              <Reminders />
+              <Layout><Reminders /></Layout>
             }
           />
           <Route
@@ -195,7 +208,7 @@ function App() {
             element={
               !isAuthenticated ? <Navigate to="/auth" /> :
               !hasApiKey ? <Navigate to="/setup" /> :
-              <Search />
+              <Layout><Search /></Layout>
             }
           />
           <Route
@@ -203,7 +216,7 @@ function App() {
             element={
               !isAuthenticated ? <Navigate to="/auth" /> :
               !hasApiKey ? <Navigate to="/setup" /> :
-              <Analytics />
+              <Layout><Analytics /></Layout>
             }
           />
         </Routes>
