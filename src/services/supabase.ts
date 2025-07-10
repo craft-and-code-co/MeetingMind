@@ -61,6 +61,26 @@ export const databaseService = {
       return null;
     }
   },
+
+  // Remove user's OpenAI API key
+  async removeApiKey(userId: string) {
+    try {
+      console.log('Attempting to remove API key for user:', userId);
+      const { error } = await supabase
+        .from('user_api_keys')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (error) {
+        console.error('Supabase error removing API key:', error);
+        throw error;
+      }
+      console.log('API key removed successfully');
+    } catch (error) {
+      console.error('Failed to remove API key:', error);
+      throw error;
+    }
+  },
 };
 
 export const authService = {

@@ -7,19 +7,15 @@ import {
   ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { useStore } from '../store/useStore';
+import { pricingConfig } from '../config';
 
 interface CostEstimatorProps {
   selectedModel: string;
 }
 
-const MODEL_COSTS = {
-  'gpt-4o-mini': { input: 0.15, output: 0.60 },
-  'gpt-4o': { input: 2.50, output: 10.00 },
-  'gpt-4-turbo-preview': { input: 10.00, output: 30.00 }
-};
-
-// Whisper pricing: $0.006 per minute
-const WHISPER_COST_PER_MINUTE = 0.006;
+// Get pricing from config
+const MODEL_COSTS = pricingConfig.models;
+const WHISPER_COST_PER_MINUTE = pricingConfig.whisperPerMinute;
 
 export const CostEstimator: React.FC<CostEstimatorProps> = ({ selectedModel }) => {
   const { meetings } = useStore();
@@ -35,10 +31,10 @@ export const CostEstimator: React.FC<CostEstimatorProps> = ({ selectedModel }) =
       const modelCost = MODEL_COSTS[selectedModel as keyof typeof MODEL_COSTS] || MODEL_COSTS['gpt-4o'];
       const premiumCost = MODEL_COSTS['gpt-4-turbo-preview'];
       
-      // Estimate tokens per meeting (typical 1-hour meeting)
-      const avgMeetingMinutes = 60; // 1-hour meeting
-      const avgTokensPerMeeting = 15000; // Input tokens (transcription + prompt)
-      const avgOutputTokens = 2000; // Output tokens for summary, actions, etc.
+      // Estimate tokens per meeting from config
+      const avgMeetingMinutes = pricingConfig.usage.averageMeetingDuration;
+      const avgTokensPerMeeting = pricingConfig.usage.averageTokensPerMeeting;
+      const avgOutputTokens = pricingConfig.usage.averageOutputTokens;
       
       // Calculate Whisper transcription cost
       const whisperCost = avgMeetingMinutes * WHISPER_COST_PER_MINUTE;

@@ -78,7 +78,7 @@ export const Search: React.FC = () => {
   return (
     <div className="max-w-none mx-auto px-6 py-6">
         {/* Search Bar */}
-        <div className="bg-white rounded-lg shadow mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow mb-6">
           <div className="p-6">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -89,14 +89,14 @@ export const Search: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search meetings, notes, and action items..."
-                className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="block w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-slate-600 rounded-md leading-5 bg-white dark:bg-slate-700 placeholder-gray-500 dark:placeholder-slate-400 text-gray-900 dark:text-white focus:outline-none focus:placeholder-gray-400 dark:focus:placeholder-slate-300 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 >
-                  <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-gray-500" />
+                  <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-gray-500 dark:text-slate-400 dark:hover:text-slate-300" />
                 </button>
               )}
             </div>
@@ -107,8 +107,8 @@ export const Search: React.FC = () => {
                 onClick={() => setSearchFilter('all')}
                 className={`px-4 py-2 rounded-md text-sm font-medium ${
                   searchFilter === 'all'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300'
+                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                 }`}
               >
                 All
@@ -117,8 +117,8 @@ export const Search: React.FC = () => {
                 onClick={() => setSearchFilter('meetings')}
                 className={`px-4 py-2 rounded-md text-sm font-medium ${
                   searchFilter === 'meetings'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300'
+                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                 }`}
               >
                 Meetings
@@ -127,8 +127,8 @@ export const Search: React.FC = () => {
                 onClick={() => setSearchFilter('notes')}
                 className={`px-4 py-2 rounded-md text-sm font-medium ${
                   searchFilter === 'notes'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300'
+                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                 }`}
               >
                 Notes
@@ -137,8 +137,8 @@ export const Search: React.FC = () => {
                 onClick={() => setSearchFilter('actions')}
                 className={`px-4 py-2 rounded-md text-sm font-medium ${
                   searchFilter === 'actions'
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300'
+                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                 }`}
               >
                 Action Items
@@ -149,21 +149,21 @@ export const Search: React.FC = () => {
 
         {/* Results */}
         {!searchQuery ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <div className="mx-auto h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center">
-              <MagnifyingGlassIcon className="h-12 w-12 text-gray-400" />
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-12 text-center">
+            <div className="mx-auto h-24 w-24 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center">
+              <MagnifyingGlassIcon className="h-12 w-12 text-gray-400 dark:text-slate-500" />
             </div>
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Search your meetings</h3>
-            <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+            <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">Search your meetings</h3>
+            <p className="mt-2 text-sm text-gray-500 dark:text-slate-400 max-w-md mx-auto">
               Find anything across all your meetings, notes, and action items. Try searching for topics, participants, or keywords.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
-              <span className="text-xs text-gray-500">Popular searches:</span>
+              <span className="text-xs text-gray-500 dark:text-slate-400">Popular searches:</span>
               {['next steps', 'decisions', 'action items', 'follow up'].map((term) => (
                 <button
                   key={term}
                   onClick={() => setSearchQuery(term)}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600"
                 >
                   {term}
                 </button>
@@ -173,12 +173,12 @@ export const Search: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {totalResults === 0 ? (
-              <div className="bg-white rounded-lg shadow p-12 text-center">
-                <div className="mx-auto h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center">
-                  <MagnifyingGlassIcon className="h-12 w-12 text-gray-400" />
+              <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-12 text-center">
+                <div className="mx-auto h-24 w-24 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center">
+                  <MagnifyingGlassIcon className="h-12 w-12 text-gray-400 dark:text-slate-500" />
                 </div>
-                <h3 className="mt-4 text-lg font-medium text-gray-900">No results found</h3>
-                <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+                <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">No results found</h3>
+                <p className="mt-2 text-sm text-gray-500 dark:text-slate-400 max-w-md mx-auto">
                   We couldn't find anything matching "{searchQuery}". Try different keywords or check your filters.
                 </p>
                 <div className="mt-6">
@@ -290,7 +290,7 @@ export const Search: React.FC = () => {
                                 <p className="text-sm text-gray-900">
                                   {highlightText(item.description, searchQuery)}
                                 </p>
-                                <p className="text-xs text-gray-500 mt-1">
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                                   From: {meeting?.title || 'Unknown Meeting'}
                                   {item.dueDate && ` • Due: ${format(new Date(item.dueDate), 'MMM d')}`}
                                 </p>

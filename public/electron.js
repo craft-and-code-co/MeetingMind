@@ -72,15 +72,34 @@ function createWindow() {
 
 // System tray setup
 function createTray() {
-  // Use the favicon.ico for the tray icon
-  const iconPath = path.join(__dirname, 'favicon.ico');
-  const icon = nativeImage.createFromPath(iconPath);
+  let icon;
+  
+  if (process.platform === 'darwin') {
+    // macOS: Use the logo.png which is a brain icon
+    const iconPath = path.join(__dirname, 'logo.png');
+    icon = nativeImage.createFromPath(iconPath);
+    
+    // Resize to proper menubar size (22x22 for retina displays)
+    icon = icon.resize({ width: 22, height: 22 });
+    
+    // Don't set as template image - keep the original colors
+    // icon.setTemplateImage(true);
+  } else {
+    // Windows/Linux: Use the regular icon
+    const iconPath = path.join(__dirname, 'favicon.ico');
+    icon = nativeImage.createFromPath(iconPath);
+  }
+  
   tray = new Tray(icon);
+  
+  // Set tooltip
+  tray.setToolTip('MeetingMind - AI Meeting Assistant');
   
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'MeetingMind',
+      label: 'Open MeetingMind',
       type: 'normal',
+      accelerator: process.platform === 'darwin' ? 'Cmd+O' : 'Ctrl+O',
       click: () => {
         if (mainWindow) {
           if (mainWindow.isMinimized()) mainWindow.restore();
@@ -91,9 +110,10 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: '🔴 Start Recording',
+      label: 'Start Recording',
       type: 'normal',
       id: 'record',
+      accelerator: process.platform === 'darwin' ? 'Cmd+R' : 'Ctrl+R',
       click: () => {
         if (mainWindow) {
           mainWindow.webContents.send('tray-toggle-recording');
@@ -177,27 +197,17 @@ function createTray() {
 // Update tray menu and icon based on recording state
 ipcMain.handle('update-tray-menu', (event, { isRecording }) => {
   if (tray) {
-    // Update tray icon to show recording state
-    const iconPath = path.join(__dirname, 'favicon.ico');
-    const icon = nativeImage.createFromPath(iconPath);
-    
-    // On macOS, we can overlay a recording indicator
-    if (process.platform === 'darwin' && isRecording) {
-      // Create a red dot overlay for recording state
-      const overlayPath = path.join(__dirname, 'favicon.ico'); // Using same icon for now
-      const overlayIcon = nativeImage.createFromPath(overlayPath);
-      tray.setImage(overlayIcon);
-    } else {
-      tray.setImage(icon);
-    }
-    
     // Update tooltip to show recording state
-    tray.setToolTip(isRecording ? 'MeetingMind - Recording' : 'MeetingMind');
+    tray.setToolTip(isRecording ? 'MeetingMind - Recording in Progress' : 'MeetingMind - AI Meeting Assistant');
+    
+    // For macOS, we keep the template image (it will automatically adapt to dark/light mode)
+    // The recording state is shown in the menu, not the icon
     
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: 'MeetingMind',
+        label: 'Open MeetingMind',
         type: 'normal',
+        accelerator: process.platform === 'darwin' ? 'Cmd+O' : 'Ctrl+O',
         click: () => {
           if (mainWindow) {
             if (mainWindow.isMinimized()) mainWindow.restore();
@@ -208,9 +218,10 @@ ipcMain.handle('update-tray-menu', (event, { isRecording }) => {
       },
       { type: 'separator' },
       {
-        label: isRecording ? '⏹️ Stop Recording' : '🔴 Start Recording',
+        label: isRecording ? 'Stop Recording' : 'Start Recording',
         type: 'normal',
         id: 'record',
+        accelerator: process.platform === 'darwin' ? 'Cmd+R' : 'Ctrl+R',
         click: () => {
           if (mainWindow) {
             mainWindow.webContents.send('tray-toggle-recording');

@@ -18,6 +18,7 @@ import { authService } from '../services/supabase';
 import { MeetingsSidebar } from './MeetingsSidebar';
 import { FolderModal } from './FolderModal';
 import { Folder } from '../types';
+import { ChatAssistant } from './ChatAssistant';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,7 +27,7 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { settings, updateSettings, isRecording, setIsRecording, addFolder, updateFolder, deleteFolder } = useStore();
+  const { settings, updateSettings, isRecording, setIsRecording, addFolder, updateFolder, deleteFolder, deleteMeeting } = useStore();
   
   const isDarkMode = settings.theme === 'dark';
   
@@ -123,6 +124,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     // This is handled by the MeetingsSidebar component
     console.log('Moving meeting', meetingId, 'to folder', folderId);
   };
+  
+  const handleDeleteMeeting = (meetingId: string) => {
+    deleteMeeting(meetingId);
+  };
 
   const navigationItems = [
     { path: '/dashboard', label: 'Home', icon: HomeIcon },
@@ -176,7 +181,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Right side actions */}
             <div className="flex items-center space-x-2">
-              {/* Recording Button */}
+              {/* Recording Button - Removed to avoid redundancy
               <button
                 onClick={isRecording ? handleStopRecording : handleStartRecording}
                 className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -198,6 +203,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </>
                 )}
               </button>
+              */}
 
               {/* Theme Toggle */}
               <button
@@ -255,6 +261,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             onEditFolder={handleEditFolder}
             onDeleteFolder={handleDeleteFolder}
             onMoveMeeting={handleMoveMeeting}
+            onDeleteMeeting={handleDeleteMeeting}
           />
         )}
         
@@ -271,6 +278,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         onSave={handleSaveFolder}
         folder={editingFolder}
       />
+
+      {/* Chat Assistant */}
+      <ChatAssistant />
     </div>
   );
 };

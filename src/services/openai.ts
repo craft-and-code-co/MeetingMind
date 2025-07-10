@@ -1,15 +1,35 @@
-import OpenAI from 'openai';
 import { ActionItem } from '../types';
+import { validateOpenAIApiKey, validateAudioFile, openAIRateLimiter, ValidationError } from '../utils/validation';
+import { apiConfig, validationConfig, remindersConfig } from '../config';
+
+// Lazy load OpenAI to reduce initial bundle size
+let OpenAI: any = null;
 
 export class OpenAIService {
-  private client: OpenAI | null = null;
-  private defaultModel: string = 'gpt-4o';
+  private client: any = null;
+  private defaultModel: string = apiConfig.openai.defaultModel;
 
-  initialize(apiKey: string) {
-    this.client = new OpenAI({
-      apiKey,
-      dangerouslyAllowBrowser: true, // For development - in production, use a backend
-    });
+  async initialize(apiKey: string) {
+    try {
+      // Validate API key format before initializing
+      validateOpenAIApiKey(apiKey);
+      
+      // Lazy load OpenAI SDK
+      if (!OpenAI) {
+        const module = await import('openai');
+        OpenAI = module.default;
+      }
+      
+      this.client = new OpenAI({
+        apiKey,
+        dangerouslyAllowBrowser: true, // TODO: Move to backend in production
+      });
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw new Error(`Invalid API key: ${error.message}`);
+      }
+      throw error;
+    }
   }
 
   setDefaultModel(model: string) {
@@ -18,25 +38,56 @@ export class OpenAIService {
 
   async transcribeAudio(audioFile: File): Promise<string> {
     if (!this.client) throw new Error('OpenAI client not initialized');
+    
+    // Validate file before processing
+    try {
+      validateAudioFile(audioFile);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw new Error(`Invalid audio file: ${error.message}`);
+      }
+      throw error;
+    }
 
-    const response = await this.client.audio.transcriptions.create({
-      file: audioFile,
-      model: 'whisper-1',
-    });
+    // Check rate limit
+    if (!openAIRateLimiter.canMakeRequest('transcription')) {
+      throw new Error('Rate limit exceeded. Please wait before making another request.');
+    }
 
-    return response.text;
+    try {
+      const response = await this.client.audio.transcriptions.create({
+        file: audioFile,
+        model: apiConfig.openai.whisperModel,
+      });
+
+      return response.text;
+    } catch (error) {
+      console.error('Audio transcription error:', error);
+      throw new Error('Failed to transcribe audio. Please try again.');
+    }
   }
 
   async transcribeAudioChunk(audioBlob: Blob): Promise<string> {
     if (!this.client) throw new Error('OpenAI client not initialized');
 
     // Convert blob to File for OpenAI API
-    const audioFile = new File([audioBlob], 'chunk.webm', { type: 'audio/webm' });
+    const audioFile = new File([audioBlob], apiConfig.openai.audioFileName, { type: 'audio/webm' });
+
+    // Check rate limit for live transcription
+    if (!openAIRateLimiter.canMakeRequest('live-transcription')) {
+      console.warn('Rate limit exceeded for live transcription');
+      return ''; // Return empty string to continue recording
+    }
 
     try {
+      // Basic validation for audio chunk
+      if (audioFile.size === 0) {
+        return '';
+      }
+
       const response = await this.client.audio.transcriptions.create({
         file: audioFile,
-        model: 'whisper-1',
+        model: apiConfig.openai.whisperModel,
         response_format: 'text',
       });
 
@@ -87,7 +138,7 @@ Respond in JSON format:
       model: this.defaultModel,
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
-      temperature: 0.3,
+      temperature: apiConfig.openai.temperatures.default,
     });
 
     const content = response.choices[0].message.content;
@@ -121,7 +172,7 @@ Generate a concise, professional email that:
     const response = await this.client.chat.completions.create({
       model: this.defaultModel,
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.5,
+      temperature: apiConfig.openai.temperatures.titleGeneration,
     });
 
     return response.choices[0].message.content || '';
@@ -220,7 +271,7 @@ Respond in JSON format:
       model: this.defaultModel,
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
-      temperature: 0.3,
+      temperature: apiConfig.openai.temperatures.default,
     });
 
     const content = response.choices[0].message.content;
@@ -228,6 +279,106 @@ Respond in JSON format:
 
     const result = JSON.parse(content);
     return result.reminders || [];
+  }
+
+  async chatWithAssistant(
+    query: string,
+    context: {
+      meetings: any[];
+      notes: any[];
+      actionItems: any[];
+      reminders: any[];
+    }
+  ): Promise<string> {
+    if (!this.client) throw new Error('OpenAI client not initialized');
+
+    // Check rate limit
+    if (!openAIRateLimiter.canMakeRequest('chat')) {
+      throw new Error('Rate limit exceeded. Please wait before making another request.');
+    }
+
+    // Get more detailed context for better responses
+    const recentMeetings = context.meetings.slice(-10).reverse();
+    const pendingActionItems = context.actionItems.filter(a => a.status === 'pending');
+    const thisWeekActionItems = pendingActionItems.filter(a => {
+      const dueDate = a.dueDate ? new Date(a.dueDate) : null;
+      if (!dueDate) return false;
+      const weekFromNow = new Date();
+      weekFromNow.setDate(weekFromNow.getDate() + 7);
+      return dueDate <= weekFromNow;
+    });
+
+    // Build detailed meeting context
+    const meetingDetails = recentMeetings.map(meeting => {
+      const note = context.notes.find(n => n.meetingId === meeting.id);
+      const meetingActionItems = context.actionItems.filter(a => a.meetingId === meeting.id);
+      const meetingReminders = context.reminders.filter(r => r.meetingId === meeting.id);
+      
+      return {
+        title: meeting.title,
+        date: meeting.date,
+        summary: note?.summary || 'No summary available',
+        actionItems: meetingActionItems.map(a => `${a.description} (${a.status})`),
+        reminders: meetingReminders.map(r => `${r.title} (${r.status})`)
+      };
+    });
+
+    // Prepare context summary
+    const contextSummary = `
+You are MeetingMind's AI assistant. You have access to the user's meeting data to help answer their questions.
+
+Current Date: ${new Date().toLocaleDateString()}
+Current Time: ${new Date().toLocaleTimeString()}
+
+MEETING DATA:
+Total meetings: ${context.meetings.length}
+Total notes: ${context.notes.length}
+Total action items: ${context.actionItems.length} (${pendingActionItems.length} pending)
+Total reminders: ${context.reminders.length}
+
+RECENT MEETINGS (most recent first):
+${meetingDetails.map((m, i) => `
+${i + 1}. ${m.title} (${m.date})
+   Summary: ${m.summary}
+   Action Items: ${m.actionItems.length > 0 ? m.actionItems.join(', ') : 'None'}
+   Reminders: ${m.reminders.length > 0 ? m.reminders.join(', ') : 'None'}
+`).join('\n')}
+
+PENDING ACTION ITEMS THIS WEEK:
+${thisWeekActionItems.length > 0 ? thisWeekActionItems.map(a => 
+  `- ${a.description}${a.dueDate ? ` (due ${new Date(a.dueDate).toLocaleDateString()})` : ' (no due date)'}`
+).join('\n') : 'No action items due this week'}
+
+ALL PENDING ACTION ITEMS:
+${pendingActionItems.length > 0 ? pendingActionItems.slice(0, 10).map(a => 
+  `- ${a.description}${a.dueDate ? ` (due ${new Date(a.dueDate).toLocaleDateString()})` : ' (no due date)'}`
+).join('\n') : 'No pending action items'}
+
+User Query: ${query}
+`;
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.defaultModel,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful AI assistant for MeetingMind. Answer questions about meetings, action items, and notes based on the provided context. Be concise and specific. If asked about a specific meeting, provide details from the notes. For action items, include due dates when available.'
+          },
+          {
+            role: 'user',
+            content: contextSummary
+          }
+        ],
+        temperature: apiConfig.openai.temperatures.default,
+        max_tokens: 500
+      });
+
+      return response.choices[0].message.content || 'I couldn\'t generate a response. Please try again.';
+    } catch (error) {
+      console.error('Chat error:', error);
+      throw new Error('Failed to process your question. Please try again.');
+    }
   }
 }
 

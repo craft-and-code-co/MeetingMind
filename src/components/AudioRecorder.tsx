@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
+import { audioConfig, intervalsConfig } from '../config';
 
 interface AudioRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void;
@@ -19,11 +20,7 @@ export const AudioRecorder = ({ onRecordingComplete, onAudioChunk }: AudioRecord
     try {
       // Request microphone permission
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100
-        } 
+        audio: audioConfig.constraints
       });
       
       streamRef.current = stream;
@@ -58,13 +55,13 @@ export const AudioRecorder = ({ onRecordingComplete, onAudioChunk }: AudioRecord
         }
       };
 
-      mediaRecorder.start(1000); // Collect data every second
+      mediaRecorder.start(intervalsConfig.recording.dataCollection);
       setIsRecording(true);
 
       // Start timer
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
-      }, 1000);
+      }, intervalsConfig.recording.timerUpdate);
 
       // Disable live transcription for now - requires more complex audio handling
       // Live transcription would need proper audio encoding and buffering

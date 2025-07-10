@@ -84,9 +84,9 @@ export const ActionItems: React.FC = () => {
           {/* Calendar */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                     {format(currentDate, 'MMMM yyyy')}
                   </h2>
                   <div className="flex space-x-2">
@@ -157,7 +157,7 @@ export const ActionItems: React.FC = () => {
           {/* Action Items List */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
                 <h3 className="text-lg font-medium text-gray-900">
                   {selectedDate ? format(selectedDate, 'MMM d, yyyy') : 'Select a date'}
                 </h3>

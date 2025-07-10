@@ -19,6 +19,7 @@ interface MeetingsSidebarProps {
   onEditFolder: (folder: Folder) => void;
   onDeleteFolder: (folderId: string) => void;
   onMoveMeeting: (meetingId: string, folderId: string | undefined) => void;
+  onDeleteMeeting: (meetingId: string) => void;
 }
 
 export const MeetingsSidebar: React.FC<MeetingsSidebarProps> = ({
@@ -26,6 +27,7 @@ export const MeetingsSidebar: React.FC<MeetingsSidebarProps> = ({
   onEditFolder,
   onDeleteFolder,
   onMoveMeeting,
+  onDeleteMeeting,
 }) => {
   const navigate = useNavigate();
   const { folders, meetings, updateMeeting } = useStore();
@@ -129,6 +131,17 @@ export const MeetingsSidebar: React.FC<MeetingsSidebarProps> = ({
                 className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-600 rounded"
               >
                 <PencilIcon className="h-3 w-3" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm(`Are you sure you want to delete "${meeting.title}"? This action cannot be undone.`)) {
+                    onDeleteMeeting(meeting.id);
+                  }
+                }}
+                className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded"
+              >
+                <TrashIcon className="h-3 w-3" />
               </button>
               <span
                 className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${

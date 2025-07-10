@@ -211,14 +211,14 @@ export const Analytics: React.FC = () => {
                       <div className="relative group cursor-pointer">
                         {/* Tooltip */}
                         {day.meetings > 0 && (
-                          <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                          <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-900 dark:bg-slate-700 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                             {day.meetings} meeting{day.meetings !== 1 ? 's' : ''}
                           </div>
                         )}
                         
                         {/* Bar */}
                         <div 
-                          className="bg-indigo-600 hover:bg-indigo-700 rounded-t-sm w-full transition-all duration-300"
+                          className="bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 rounded-t-sm w-full transition-all duration-300"
                           style={{ 
                             height: `${barHeight}px`,
                             minHeight: '4px',

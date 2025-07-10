@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { databaseService } from '../services/supabase';
+import { databaseService, authService } from '../services/supabase';
 import { openAIService } from '../services/openai';
 
 export const Setup: React.FC = () => {
@@ -11,7 +11,19 @@ export const Setup: React.FC = () => {
   const [isCheckingKey, setIsCheckingKey] = useState(true);
   const [error, setError] = useState('');
   const setSettings = useStore((state) => state.setSettings);
+  const settings = useStore((state) => state.settings);
   const userId = useStore((state) => state.userId);
+  
+  // Debug: Check if we already have an API key
+  console.log('Setup page - Existing API key:', !!settings.openAIApiKey);
+
+  // If we already have an API key in settings, navigate to dashboard
+  useEffect(() => {
+    if (settings.openAIApiKey) {
+      console.log('API key already in settings, navigating to dashboard');
+      navigate('/dashboard');
+    }
+  }, [settings.openAIApiKey, navigate]);
 
   // Check if user already has an API key stored
   useEffect(() => {
@@ -19,20 +31,52 @@ export const Setup: React.FC = () => {
       if (!userId) return;
       
       try {
+        // First try to get from Supabase
         const storedKey = await databaseService.getApiKey(userId);
         if (storedKey) {
           setSettings({ openAIApiKey: storedKey });
           // Key found and set, navigation will happen automatically
+          return;
         }
       } catch (error) {
         console.error('Failed to check for existing API key:', error);
-      } finally {
-        setIsCheckingKey(false);
       }
+      
+      // If no key in Supabase, check local storage via Electron
+      try {
+        if (window.electronAPI) {
+          const localKey = await window.electronAPI.getApiKey();
+          if (localKey) {
+            console.log('Found API key in local storage');
+            setSettings({ openAIApiKey: localKey });
+            // Try to sync to Supabase for future use
+            try {
+              await databaseService.storeApiKey(userId, localKey);
+              console.log('Synced local key to Supabase');
+            } catch (syncError) {
+              console.warn('Failed to sync API key to database:', syncError);
+            }
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check local API key:', error);
+      }
+      
+      setIsCheckingKey(false);
     };
 
     checkExistingKey();
   }, [userId, setSettings]);
+
+  const handleSignOut = async () => {
+    try {
+      await authService.signOut();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,6 +237,18 @@ export const Setup: React.FC = () => {
                 </p>
               </div>
             </div>
+          </div>
+          
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <p className="text-center text-sm text-gray-600 mb-2">
+              Wrong account?
+            </p>
+            <button
+              onClick={handleSignOut}
+              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </div>

@@ -3,3 +3,64 @@
 // expect(element).toHaveTextContent(/react/i)
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
+
+// Mock Electron API
+import './__tests__/mocks/electronAPI';
+
+// Mock MediaDevices API
+import './__tests__/mocks/mediaDevices';
+
+// Suppress console errors during tests unless explicitly testing them
+const originalError = console.error;
+const originalWarn = console.warn;
+
+beforeAll(() => {
+  console.error = jest.fn((...args) => {
+    // Still log actual errors that aren't React errors we expect
+    if (
+      typeof args[0] === 'string' &&
+      !args[0].includes('Warning: ReactDOM.render') &&
+      !args[0].includes('ErrorBoundary caught an error')
+    ) {
+      originalError.call(console, ...args);
+    }
+  });
+  
+  console.warn = jest.fn((...args) => {
+    // Filter out expected warnings
+    if (
+      typeof args[0] === 'string' &&
+      !args[0].includes('componentWillReceiveProps')
+    ) {
+      originalWarn.call(console, ...args);
+    }
+  });
+});
+
+afterAll(() => {
+  console.error = originalError;
+  console.warn = originalWarn;
+});
+
+// Mock window.matchMedia
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: jest.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(), // deprecated
+    removeListener: jest.fn(), // deprecated
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+});
+
+// Mock IntersectionObserver
+global.IntersectionObserver = class IntersectionObserver {
+  constructor() {}
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+} as any;

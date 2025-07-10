@@ -18,9 +18,12 @@ import { openAIService } from '../services/openai';
 import { TemplateSelector } from '../components/TemplateSelector';
 import { NotificationSettings } from '../components/NotificationSettings';
 import { ModelComparison } from '../components/ModelComparison';
+import { defaultsConfig, intervalsConfig } from '../config';
+import { useOnboarding } from '../hooks/useOnboarding';
 
 export const Settings: React.FC = () => {
   const { settings, setSettings, userId } = useStore();
+  const { resetOnboarding } = useOnboarding();
   const [userEmail, setUserEmail] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
@@ -29,18 +32,18 @@ export const Settings: React.FC = () => {
   const [error, setError] = useState('');
 
   // Audio quality settings
-  const [audioQuality, setAudioQuality] = useState(settings.audioQuality || 'medium');
-  const [autoStartRecording, setAutoStartRecording] = useState(settings.autoStartRecording || false);
+  const [audioQuality, setAudioQuality] = useState(settings.audioQuality || defaultsConfig.audioQuality);
+  const [autoStartRecording, setAutoStartRecording] = useState(settings.autoStartRecording || defaultsConfig.autoStartRecording);
   
   // Template settings
-  const [defaultMeetingTemplate, setDefaultMeetingTemplate] = useState(settings.defaultMeetingTemplate || 'custom');
+  const [defaultMeetingTemplate, setDefaultMeetingTemplate] = useState(settings.defaultMeetingTemplate || defaultsConfig.meetingTemplate);
   
   // Menu bar settings
-  const [showMenuBar, setShowMenuBar] = useState(settings.showMenuBar !== false);
-  const [menuBarAlwaysVisible, setMenuBarAlwaysVisible] = useState(settings.menuBarAlwaysVisible || false);
+  const [showMenuBar, setShowMenuBar] = useState(settings.showMenuBar !== false || defaultsConfig.showMenuBar);
+  const [menuBarAlwaysVisible, setMenuBarAlwaysVisible] = useState(settings.menuBarAlwaysVisible || defaultsConfig.menuBarAlwaysVisible);
   
   // Model selection
-  const [selectedModel, setSelectedModel] = useState(settings.openAIModel || 'gpt-4o');
+  const [selectedModel, setSelectedModel] = useState(settings.openAIModel || defaultsConfig.openAIModel);
   
   // Track unsaved changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -81,7 +84,7 @@ export const Settings: React.FC = () => {
 
       setSuccessMessage('API key updated successfully!');
       setApiKey('');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      setTimeout(() => setSuccessMessage(''), intervalsConfig.ui.successMessageTimeout);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update API key');
     } finally {
@@ -104,7 +107,7 @@ export const Settings: React.FC = () => {
     
     setSuccessMessage('All settings saved successfully!');
     setHasUnsavedChanges(false);
-    setTimeout(() => setSuccessMessage(''), 3000);
+    setTimeout(() => setSuccessMessage(''), intervalsConfig.ui.successMessageTimeout);
   };
   
   // Track changes
@@ -157,7 +160,7 @@ export const Settings: React.FC = () => {
             <div>
               <button
                 onClick={() => authService.resetPassword(userEmail)}
-                className="text-sm text-indigo-600 hover:text-indigo-500"
+                className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
               >
                 Reset Password
               </button>
@@ -386,21 +389,47 @@ export const Settings: React.FC = () => {
           <NotificationSettings />
         </div>
 
+        {/* Reset Onboarding */}
+        <div className="bg-white dark:bg-slate-800 shadow rounded-lg mb-6">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
+              <SparklesIcon className="h-5 w-5 mr-2" />
+              Help & Onboarding
+            </h2>
+          </div>
+          <div className="px-6 py-4">
+            <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">
+              View the onboarding tour again or reset all tooltips to see feature hints.
+            </p>
+            <button
+              onClick={() => {
+                resetOnboarding();
+                setSuccessMessage('Onboarding reset! Refresh the page to see the welcome tour.');
+                setTimeout(() => setSuccessMessage(''), intervalsConfig.ui.successMessageTimeout);
+              }}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-md text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <SparklesIcon className="h-5 w-5 mr-2" />
+              Reset Onboarding Tour
+            </button>
+          </div>
+        </div>
+
         {/* Danger Zone */}
-        <div className="bg-white shadow rounded-lg border-red-300">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-red-600 flex items-center">
+        <div className="bg-white dark:bg-slate-800 shadow rounded-lg border-red-300 dark:border-red-900">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-medium text-red-600 dark:text-red-400 flex items-center">
               <TrashIcon className="h-5 w-5 mr-2" />
               Danger Zone
             </h2>
           </div>
           <div className="px-6 py-4">
-            <p className="text-sm text-gray-700 mb-4">
+            <p className="text-sm text-gray-700 dark:text-slate-300 mb-4">
               Once you delete your account, there is no going back. Please be certain.
             </p>
             <button
               onClick={handleDeleteAccount}
-              className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              className="inline-flex items-center px-4 py-2 border border-red-300 dark:border-red-700 text-sm font-medium rounded-md text-red-700 dark:text-red-400 bg-white dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
             >
               Delete Account
             </button>

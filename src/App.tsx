@@ -1,20 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Setup } from './pages/Setup';
-import { Dashboard } from './pages/Dashboard';
-import { ActionItems } from './pages/ActionItems';
-import { MeetingDetail } from './pages/MeetingDetail';
-import { Settings } from './pages/Settings';
-import { Auth } from './pages/Auth';
-import { Reminders } from './pages/Reminders';
-import { Search } from './pages/Search';
-import { Analytics } from './pages/Analytics';
 import { Layout } from './components/Layout';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { LoadingSpinner } from './components/LoadingSpinner';
 import { useStore } from './store/useStore';
 import { openAIService } from './services/openai';
 import { authService, databaseService } from './services/supabase';
 import './App.css';
+
+// Lazy load all pages for code splitting
+const Setup = lazy(() => import('./pages/Setup').then(module => ({ default: module.Setup })));
+const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
+const ActionItems = lazy(() => import('./pages/ActionItems').then(module => ({ default: module.ActionItems })));
+const MeetingDetail = lazy(() => import('./pages/MeetingDetail').then(module => ({ default: module.MeetingDetail })));
+const Settings = lazy(() => import('./pages/Settings').then(module => ({ default: module.Settings })));
+const Auth = lazy(() => import('./pages/Auth').then(module => ({ default: module.Auth })));
+const Reminders = lazy(() => import('./pages/Reminders').then(module => ({ default: module.Reminders })));
+const Search = lazy(() => import('./pages/Search').then(module => ({ default: module.Search })));
+const Analytics = lazy(() => import('./pages/Analytics').then(module => ({ default: module.Analytics })));
 
 const queryClient = new QueryClient();
 
@@ -40,11 +44,21 @@ function App() {
           
           // Check for API key in settings
           if (settings.openAIApiKey) {
-            openAIService.initialize(settings.openAIApiKey);
-            if (settings.openAIModel) {
-              openAIService.setDefaultModel(settings.openAIModel);
+            try {
+              // Validate the key format before trying to initialize
+              const { validateOpenAIApiKey } = await import('./utils/validation');
+              validateOpenAIApiKey(settings.openAIApiKey);
+              
+              await openAIService.initialize(settings.openAIApiKey);
+              if (settings.openAIModel) {
+                openAIService.setDefaultModel(settings.openAIModel);
+              }
+              setHasApiKey(true);
+            } catch (error) {
+              console.warn('Invalid API key in settings:', error);
+              // Clear invalid API key
+              setSettings({ openAIApiKey: undefined });
             }
-            setHasApiKey(true);
           }
         } else {
           const user = await authService.getCurrentUser();
@@ -56,12 +70,26 @@ function App() {
             try {
               const storedKey = await databaseService.getApiKey(user.id);
               if (storedKey) {
-                setSettings({ openAIApiKey: storedKey });
-                openAIService.initialize(storedKey);
-                if (settings.openAIModel) {
-                  openAIService.setDefaultModel(settings.openAIModel);
+                try {
+                  // Validate the key format before trying to initialize
+                  const { validateOpenAIApiKey } = await import('./utils/validation');
+                  validateOpenAIApiKey(storedKey);
+                  
+                  setSettings({ openAIApiKey: storedKey });
+                  await openAIService.initialize(storedKey);
+                  if (settings.openAIModel) {
+                    openAIService.setDefaultModel(settings.openAIModel);
+                  }
+                  setHasApiKey(true);
+                } catch (initError) {
+                  console.warn('Invalid API key from database:', initError);
+                  // Remove invalid key from database
+                  try {
+                    await databaseService.removeApiKey(user.id);
+                  } catch (removeError) {
+                    console.error('Failed to remove invalid key from database:', removeError);
+                  }
                 }
-                setHasApiKey(true);
               }
             } catch (error) {
               console.error('Failed to get API key from database:', error);
@@ -72,14 +100,34 @@ function App() {
               try {
                 const localKey = await window.electronAPI.getApiKey();
                 if (localKey) {
-                  setSettings({ openAIApiKey: localKey });
-                  openAIService.initialize(localKey);
-                  if (settings.openAIModel) {
-                    openAIService.setDefaultModel(settings.openAIModel);
+                  try {
+                    // Validate the key format before trying to initialize
+                    const { validateOpenAIApiKey } = await import('./utils/validation');
+                    validateOpenAIApiKey(localKey);
+                    
+                    setSettings({ openAIApiKey: localKey });
+                    await openAIService.initialize(localKey);
+                    if (settings.openAIModel) {
+                      openAIService.setDefaultModel(settings.openAIModel);
+                    }
+                    setHasApiKey(true);
+                    // Sync to Supabase for future use
+                    try {
+                      await databaseService.storeApiKey(user.id, localKey);
+                    } catch (storeError) {
+                      console.warn('Failed to sync API key to database:', storeError);
+                    }
+                  } catch (initError) {
+                    console.warn('Invalid local API key:', initError);
+                    // Clear invalid key from local storage if possible
+                    if (window.electronAPI?.removeApiKey) {
+                      try {
+                        await window.electronAPI.removeApiKey();
+                      } catch (removeError) {
+                        console.error('Failed to remove invalid key from local storage:', removeError);
+                      }
+                    }
                   }
-                  setHasApiKey(true);
-                  // Sync to Supabase for future use
-                  await databaseService.storeApiKey(user.id, localKey);
                 }
               } catch (error) {
                 console.error('Failed to get local API key:', error);
@@ -114,16 +162,33 @@ function App() {
 
   useEffect(() => {
     // Initialize OpenAI when settings change
-    console.log('Settings API key changed:', !!settings.openAIApiKey);
-    if (settings.openAIApiKey) {
-      openAIService.initialize(settings.openAIApiKey);
-      if (settings.openAIModel) {
-        openAIService.setDefaultModel(settings.openAIModel);
+    const initializeOpenAI = async () => {
+      console.log('Settings API key changed:', !!settings.openAIApiKey);
+      if (settings.openAIApiKey) {
+        try {
+          // Validate the key format before trying to initialize
+          const { validateOpenAIApiKey } = await import('./utils/validation');
+          validateOpenAIApiKey(settings.openAIApiKey);
+          
+          await openAIService.initialize(settings.openAIApiKey);
+          if (settings.openAIModel) {
+            openAIService.setDefaultModel(settings.openAIModel);
+          }
+          setHasApiKey(true);
+          console.log('API key set, hasApiKey:', true);
+        } catch (error) {
+          console.warn('Failed to initialize OpenAI with settings API key:', error);
+          // Clear invalid API key from settings
+          setSettings({ openAIApiKey: undefined });
+          setHasApiKey(false);
+        }
+      } else {
+        setHasApiKey(false);
       }
-      setHasApiKey(true);
-      console.log('API key set, hasApiKey:', true);
-    }
-  }, [settings.openAIApiKey, settings.openAIModel]);
+    };
+
+    initializeOpenAI();
+  }, [settings.openAIApiKey, settings.openAIModel, setSettings]);
 
   if (isLoading) {
     return (
@@ -144,84 +209,91 @@ function App() {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <Routes>
-          <Route
-            path="/"
-            element={<Navigate to={getInitialRoute()} />}
-          />
-          <Route
-            path="/auth"
-            element={isAuthenticated ? <Navigate to="/setup" /> : <Auth />}
-          />
-          <Route
-            path="/setup"
-            element={
-              !isAuthenticated ? <Navigate to="/auth" /> :
-              hasApiKey ? <Navigate to="/dashboard" /> : 
-              <Setup />
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              !isAuthenticated ? <Navigate to="/auth" /> :
-              !hasApiKey ? <Navigate to="/setup" /> :
-              <Layout><Dashboard /></Layout>
-            }
-          />
-          <Route
-            path="/action-items"
-            element={
-              !isAuthenticated ? <Navigate to="/auth" /> :
-              !hasApiKey ? <Navigate to="/setup" /> :
-              <Layout><ActionItems /></Layout>
-            }
-          />
-          <Route
-            path="/meeting/:meetingId"
-            element={
-              !isAuthenticated ? <Navigate to="/auth" /> :
-              !hasApiKey ? <Navigate to="/setup" /> :
-              <Layout><MeetingDetail /></Layout>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              !isAuthenticated ? <Navigate to="/auth" /> :
-              !hasApiKey ? <Navigate to="/setup" /> :
-              <Layout><Settings /></Layout>
-            }
-          />
-          <Route
-            path="/reminders"
-            element={
-              !isAuthenticated ? <Navigate to="/auth" /> :
-              !hasApiKey ? <Navigate to="/setup" /> :
-              <Layout><Reminders /></Layout>
-            }
-          />
-          <Route
-            path="/search"
-            element={
-              !isAuthenticated ? <Navigate to="/auth" /> :
-              !hasApiKey ? <Navigate to="/setup" /> :
-              <Layout><Search /></Layout>
-            }
-          />
-          <Route
-            path="/analytics"
-            element={
-              !isAuthenticated ? <Navigate to="/auth" /> :
-              !hasApiKey ? <Navigate to="/setup" /> :
-              <Layout><Analytics /></Layout>
-            }
-          />
-        </Routes>
-      </Router>
-    </QueryClientProvider>
+    <ErrorBoundary onError={(error, errorInfo) => {
+      console.error('App-level error:', error, errorInfo);
+      // In production, send to error tracking service
+    }}>
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes>
+              <Route
+                path="/"
+                element={<Navigate to={getInitialRoute()} />}
+              />
+              <Route
+                path="/auth"
+                element={isAuthenticated ? <Navigate to="/setup" /> : <Auth />}
+              />
+              <Route
+                path="/setup"
+                element={
+                  !isAuthenticated ? <Navigate to="/auth" /> :
+                  hasApiKey ? <Navigate to="/dashboard" /> : 
+                  <Setup />
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  !isAuthenticated ? <Navigate to="/auth" /> :
+                  !hasApiKey ? <Navigate to="/setup" /> :
+                  <Layout><Dashboard /></Layout>
+                }
+              />
+              <Route
+                path="/action-items"
+                element={
+                  !isAuthenticated ? <Navigate to="/auth" /> :
+                  !hasApiKey ? <Navigate to="/setup" /> :
+                  <Layout><ActionItems /></Layout>
+                }
+              />
+              <Route
+                path="/meeting/:meetingId"
+                element={
+                  !isAuthenticated ? <Navigate to="/auth" /> :
+                  !hasApiKey ? <Navigate to="/setup" /> :
+                  <Layout><MeetingDetail /></Layout>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  !isAuthenticated ? <Navigate to="/auth" /> :
+                  !hasApiKey ? <Navigate to="/setup" /> :
+                  <Layout><Settings /></Layout>
+                }
+              />
+              <Route
+                path="/reminders"
+                element={
+                  !isAuthenticated ? <Navigate to="/auth" /> :
+                  !hasApiKey ? <Navigate to="/setup" /> :
+                  <Layout><Reminders /></Layout>
+                }
+              />
+              <Route
+                path="/search"
+                element={
+                  !isAuthenticated ? <Navigate to="/auth" /> :
+                  !hasApiKey ? <Navigate to="/setup" /> :
+                  <Layout><Search /></Layout>
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  !isAuthenticated ? <Navigate to="/auth" /> :
+                  !hasApiKey ? <Navigate to="/setup" /> :
+                  <Layout><Analytics /></Layout>
+                }
+              />
+            </Routes>
+          </Suspense>
+        </Router>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

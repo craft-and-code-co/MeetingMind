@@ -1,6 +1,7 @@
 export interface ElectronAPI {
   storeApiKey: (apiKey: string) => Promise<boolean>;
   getApiKey: () => Promise<string | null>;
+  removeApiKey?: () => Promise<void>;
   startAudioCapture: () => Promise<void>;
   stopAudioCapture: () => Promise<string>; // Returns path to audio file
   saveFile: (path: string, content: string) => Promise<void>;
@@ -26,9 +27,9 @@ export interface ElectronAPI {
     platform: string;
     confidence: number;
     isActive: boolean;
-  }>) => void) => void;
-  onMeetingDetectedNotificationClicked: (callback: (event: any, meeting: any) => void) => void;
-  onStartRecordingFromNotification: (callback: (event: any, meeting: any) => void) => void;
+  }>) => void) => (() => void);
+  onMeetingDetectedNotificationClicked: (callback: (event: any, meeting: any) => void) => (() => void);
+  onStartRecordingFromNotification: (callback: (event: any, meeting: any) => void) => (() => void);
   
   // Native notifications
   showNotification: (options: {
@@ -39,7 +40,7 @@ export interface ElectronAPI {
     tag?: string;
     actions?: Array<{ type: string; text: string; }>;
   }) => Promise<boolean>;
-  onNotificationClicked: (callback: (event: any, tag: string) => void) => void;
+  onNotificationClicked: (callback: (event: any, tag: string) => void) => (() => void);
 }
 
 declare global {
