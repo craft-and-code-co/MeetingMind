@@ -128,61 +128,61 @@ export const Analytics: React.FC = () => {
     <div className="max-w-none mx-auto px-6 py-6">
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <MicrophoneIcon className="h-8 w-8 text-indigo-600" />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Total Meetings</h3>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalMeetings}</p>
+                <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Meetings</h3>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalMeetings}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <ClockIcon className="h-8 w-8 text-green-600" />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Total Recording Time</h3>
-                <p className="text-2xl font-bold text-gray-900">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Recording Time</h3>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {formatDuration(stats.totalRecordingTime)}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <DocumentTextIcon className="h-8 w-8 text-blue-600" />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Total Notes</h3>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalNotes}</p>
+                <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Notes</h3>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalNotes}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <CheckCircleIcon className="h-8 w-8 text-purple-600" />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-500">Completed Actions</h3>
-                <p className="text-2xl font-bold text-gray-900">{stats.completedActionItems}</p>
+                <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Completed Actions</h3>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.completedActionItems}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Weekly Overview */}
-        <div className="bg-white rounded-lg shadow mb-8">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow mb-8">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <CalendarDaysIcon className="h-5 w-5 mr-2" />
               This Week's Meetings
             </h2>
@@ -193,8 +193,8 @@ export const Analytics: React.FC = () => {
               <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
                 {[4, 3, 2, 1, 0].map((val) => (
                   <div key={val} className="flex items-center">
-                    <span className="text-xs text-gray-400 w-4 text-right mr-2">{val * 2}</span>
-                    <div className="flex-1 border-t border-gray-100"></div>
+                    <span className="text-xs text-gray-400 dark:text-slate-500 w-4 text-right mr-2">{val * 2}</span>
+                    <div className="flex-1 border-t border-gray-100 dark:border-slate-700"></div>
                   </div>
                 ))}
               </div>
@@ -226,7 +226,7 @@ export const Analytics: React.FC = () => {
                           }}
                         />
                       </div>
-                      <span className="text-xs text-gray-600 mt-2 font-medium">{day.day}</span>
+                      <span className="text-xs text-gray-600 dark:text-slate-400 mt-2 font-medium">{day.day}</span>
                     </div>
                   );
                 })}
@@ -238,31 +238,31 @@ export const Analytics: React.FC = () => {
         {/* Detailed Stats */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Meeting Performance */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900 flex items-center">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
                 <ChartBarIcon className="h-5 w-5 mr-2" />
                 Meeting Performance
               </h2>
             </div>
             <div className="p-6 space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Average Meeting Duration</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-gray-500 dark:text-slate-400">Average Meeting Duration</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
                   {formatDuration(stats.averageMeetingDuration)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Meetings This Week</span>
-                <span className="text-sm font-medium text-gray-900">{stats.meetingsThisWeek}</span>
+                <span className="text-sm text-gray-500 dark:text-slate-400">Meetings This Week</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.meetingsThisWeek}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Most Productive Day (Last 30 Days)</span>
-                <span className="text-sm font-medium text-gray-900">{stats.mostProductiveDay}</span>
+                <span className="text-sm text-gray-500 dark:text-slate-400">Most Productive Day (Last 30 Days)</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.mostProductiveDay}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Average Notes per Meeting</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-gray-500 dark:text-slate-400">Average Notes per Meeting</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
                   {stats.averageNotesPerMeeting % 1 === 0 
                     ? stats.averageNotesPerMeeting.toFixed(0) 
                     : stats.averageNotesPerMeeting.toFixed(1)}
@@ -272,25 +272,25 @@ export const Analytics: React.FC = () => {
           </div>
 
           {/* Action Items Progress */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900 flex items-center">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
                 <CheckCircleIcon className="h-5 w-5 mr-2" />
                 Action Items Progress
               </h2>
             </div>
             <div className="p-6 space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Completed</span>
-                <span className="text-sm font-medium text-green-600">{stats.completedActionItems}</span>
+                <span className="text-sm text-gray-500 dark:text-slate-400">Completed</span>
+                <span className="text-sm font-medium text-green-600 dark:text-green-400">{stats.completedActionItems}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Pending</span>
-                <span className="text-sm font-medium text-yellow-600">{stats.pendingActionItems}</span>
+                <span className="text-sm text-gray-500 dark:text-slate-400">Pending</span>
+                <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">{stats.pendingActionItems}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Completion Rate</span>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm text-gray-500 dark:text-slate-400">Completion Rate</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
                   {stats.completedActionItems + stats.pendingActionItems > 0 
                     ? Math.round((stats.completedActionItems / (stats.completedActionItems + stats.pendingActionItems)) * 100)
                     : 0}%
@@ -299,9 +299,9 @@ export const Analytics: React.FC = () => {
               
               {/* Progress bar */}
               <div className="mt-4">
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
                   <div 
-                    className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-green-600 dark:bg-green-500 h-2 rounded-full transition-all duration-300"
                     style={{ 
                       width: `${stats.completedActionItems + stats.pendingActionItems > 0 
                         ? (stats.completedActionItems / (stats.completedActionItems + stats.pendingActionItems)) * 100

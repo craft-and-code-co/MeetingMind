@@ -11,10 +11,12 @@ import {
   FunnelIcon,
   PencilIcon,
   EyeIcon,
-  EyeSlashIcon
+  EyeSlashIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import { useStore } from '../store/useStore';
 import { ReminderEditModal } from '../components/ReminderEditModal';
+import { AddReminderModal } from '../components/AddReminderModal';
 import { Reminder } from '../types';
 
 export const Reminders: React.FC = () => {
@@ -24,6 +26,7 @@ export const Reminders: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [showCompleted, setShowCompleted] = useState(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const now = new Date();
   const todayStart = startOfDay(now);
@@ -168,7 +171,14 @@ export const Reminders: React.FC = () => {
             </h2>
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => setShowCompleted(!showCompleted)}
+                onClick={() => {
+                  const newShowCompleted = !showCompleted;
+                  setShowCompleted(newShowCompleted);
+                  // Automatically adjust filter to show all when viewing completed
+                  if (newShowCompleted) {
+                    setFilter('all');
+                  }
+                }}
                 className="inline-flex items-center px-3 py-1 text-sm font-medium text-gray-700 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white"
               >
                 {showCompleted ? (
@@ -224,10 +234,17 @@ export const Reminders: React.FC = () => {
 
       {/* Reminders List */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">
             Reminders ({filteredReminders.length})
           </h2>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <PlusIcon className="h-4 w-4 mr-1" />
+            New Reminder
+          </button>
         </div>
         <div className="divide-y divide-gray-200 dark:divide-slate-700">
           {filteredReminders.length === 0 ? (
@@ -250,78 +267,92 @@ export const Reminders: React.FC = () => {
               return (
                 <div
                   key={reminder.id}
-                  className={`px-6 py-4 hover:bg-gray-50 dark:hover:bg-slate-700 ${
+                  className={`flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors ${
                     reminder.status !== 'pending' ? 'opacity-60' : ''
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-start">
-                        <div className="flex-1">
-                          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                            {reminder.title}
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
-                            {reminder.description}
-                          </p>
-                          <div className="flex items-center mt-2 space-x-4 text-xs">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full ${getPriorityColor(reminder.priority)}`}>
-                              {reminder.priority} priority
-                            </span>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full ${getStatusColor(reminder)}`}>
-                              {isOverdue ? 'Overdue' : format(new Date(reminder.dueDate), 'MMM d, yyyy')}
-                            </span>
-                            {meeting && (
-                              <button
-                                onClick={() => navigate(`/meeting/${meeting.id}`)}
-                                className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
-                              >
-                                From: {meeting.title}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <div className="ml-4 flex items-center space-x-2">
-                          {reminder.status === 'pending' && (
-                            <>
-                              <button
-                                onClick={() => handleEdit(reminder)}
-                                className="p-1 text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-600 rounded"
-                                title="Edit reminder"
-                              >
-                                <PencilIcon className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => handleComplete(reminder)}
-                                className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded"
-                                title="Mark as complete"
-                              >
-                                <CheckIcon className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => handleDismiss(reminder)}
-                                className="p-1 text-gray-400 hover:bg-gray-100 dark:text-slate-500 dark:hover:bg-slate-600 rounded"
-                                title="Dismiss"
-                              >
-                                <XMarkIcon className="h-5 w-5" />
-                              </button>
-                            </>
-                          )}
-                          {reminder.status === 'sent' && (
-                            <span className="text-green-600 flex items-center">
-                              <CheckIcon className="h-5 w-5 mr-1" />
-                              Completed
-                            </span>
-                          )}
-                          {reminder.status === 'dismissed' && (
-                            <span className="text-gray-400 dark:text-slate-500 flex items-center">
-                              <XMarkIcon className="h-5 w-5 mr-1" />
-                              Dismissed
-                            </span>
-                          )}
-                        </div>
+                  {/* Checkbox for quick completion */}
+                  <div className="mr-3">
+                    {reminder.status === 'pending' ? (
+                      <button
+                        onClick={() => handleComplete(reminder)}
+                        className="w-5 h-5 rounded border-2 border-gray-300 dark:border-slate-600 hover:border-green-500 dark:hover:border-green-400 transition-colors"
+                        title="Mark as complete"
+                      />
+                    ) : reminder.status === 'sent' ? (
+                      <div className="w-5 h-5 rounded bg-green-500 dark:bg-green-600 flex items-center justify-center">
+                        <CheckIcon className="h-3 w-3 text-white" />
                       </div>
+                    ) : (
+                      <div className="w-5 h-5 rounded bg-gray-300 dark:bg-slate-600 flex items-center justify-center">
+                        <XMarkIcon className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Main content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline">
+                      <h3 className={`text-sm font-medium ${
+                        reminder.status === 'sent' ? 'line-through text-gray-500 dark:text-slate-500' : 'text-gray-900 dark:text-white'
+                      }`}>
+                        {reminder.title}
+                      </h3>
+                      <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${getPriorityColor(reminder.priority)}`}>
+                        {reminder.priority}
+                      </span>
                     </div>
+                    {reminder.description && (
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5 truncate">
+                        {reminder.description}
+                      </p>
+                    )}
+                    <div className="flex items-center mt-1 space-x-3 text-xs text-gray-500 dark:text-slate-500">
+                      <span className={isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : ''}>
+                        {isOverdue ? 'Overdue: ' : ''}{format(new Date(reminder.dueDate), 'MMM d, yyyy')}
+                      </span>
+                      {meeting && (
+                        <button
+                          onClick={() => navigate(`/meeting/${meeting.id}`)}
+                          className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+                        >
+                          {meeting.title}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="ml-4 flex items-center space-x-1">
+                    {reminder.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleEdit(reminder)}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-slate-500 dark:hover:text-slate-300 dark:hover:bg-slate-600 rounded transition-colors"
+                          title="Edit"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDismiss(reminder)}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-slate-500 dark:hover:text-slate-300 dark:hover:bg-slate-600 rounded transition-colors"
+                          title="Dismiss"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                    {(reminder.status === 'sent' || reminder.status === 'dismissed') && (
+                      <button
+                        onClick={() => updateReminder(reminder.id, { status: 'pending' })}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-slate-500 dark:hover:text-slate-300 dark:hover:bg-slate-600 rounded transition-colors"
+                        title="Restore"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -337,6 +368,21 @@ export const Reminders: React.FC = () => {
         onClose={() => setEditingReminder(null)}
         onSave={handleSaveEdit}
       />
+      
+      {/* Add Modal */}
+      <AddReminderModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+      />
+      
+      {/* Floating Action Button */}
+      <button
+        onClick={() => setShowAddModal(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center transition-all hover:scale-110"
+        title="Add new reminder"
+      >
+        <PlusIcon className="h-6 w-6" />
+      </button>
     </div>
   );
 };

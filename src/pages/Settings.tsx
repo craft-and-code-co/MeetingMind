@@ -136,26 +136,26 @@ export const Settings: React.FC = () => {
     <div className={`max-w-4xl mx-auto px-6 py-6 ${hasUnsavedChanges ? 'pb-24' : ''}`}>
         {/* Success Message */}
         {successMessage && (
-          <div className="mb-6 rounded-md bg-green-50 p-4">
+          <div className="mb-6 rounded-md bg-green-50 dark:bg-green-900/20 p-4">
             <div className="flex">
-              <CheckIcon className="h-5 w-5 text-green-400" />
-              <p className="ml-3 text-sm font-medium text-green-800">{successMessage}</p>
+              <CheckIcon className="h-5 w-5 text-green-400 dark:text-green-300" />
+              <p className="ml-3 text-sm font-medium text-green-800 dark:text-green-200">{successMessage}</p>
             </div>
           </div>
         )}
 
         {/* Account Section */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+        <div className="bg-white dark:bg-slate-800 shadow rounded-lg mb-6">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <UserCircleIcon className="h-5 w-5 mr-2" />
               Account
             </h2>
           </div>
           <div className="px-6 py-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <p className="mt-1 text-sm text-gray-900">{userEmail}</p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Email</label>
+              <p className="mt-1 text-sm text-gray-900 dark:text-white">{userEmail}</p>
             </div>
             <div>
               <button
@@ -169,9 +169,9 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* API Key Section */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+        <div className="bg-white dark:bg-slate-800 shadow rounded-lg mb-6">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <KeyIcon className="h-5 w-5 mr-2" />
               OpenAI API Key
             </h2>
@@ -179,10 +179,10 @@ export const Settings: React.FC = () => {
           <div className="px-6 py-4">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                   Current API Key
                 </label>
-                <p className="mt-1 text-sm text-gray-900">
+                <p className="mt-1 text-sm text-gray-900 dark:text-white">
                   {settings.openAIApiKey ? 
                     (showApiKey ? settings.openAIApiKey : '••••••••••••••••' + settings.openAIApiKey.slice(-4)) : 
                     'Not set'
@@ -191,7 +191,7 @@ export const Settings: React.FC = () => {
                 {settings.openAIApiKey && (
                   <button
                     onClick={() => setShowApiKey(!showApiKey)}
-                    className="mt-1 text-sm text-indigo-600 hover:text-indigo-500"
+                    className="mt-1 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
                   >
                     {showApiKey ? 'Hide' : 'Show'} API Key
                   </button>
@@ -199,7 +199,7 @@ export const Settings: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                   Update API Key
                 </label>
                 <div className="mt-1 flex rounded-md shadow-sm">
@@ -209,12 +209,12 @@ export const Settings: React.FC = () => {
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="sk-..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-l-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                   <button
                     onClick={handleUpdateApiKey}
                     disabled={isLoading || !apiKey}
-                    className="px-4 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 border border-l-0 border-gray-300 dark:border-slate-600 rounded-r-md bg-gray-50 dark:bg-slate-700 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? 'Updating...' : 'Update'}
                   </button>
@@ -228,22 +228,22 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* Recording Settings */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+        <div className="bg-white dark:bg-slate-800 shadow rounded-lg mb-6">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <MicrophoneIcon className="h-5 w-5 mr-2" />
               Recording Settings
             </h2>
           </div>
           <div className="px-6 py-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                 Audio Quality
               </label>
               <select
                 value={audioQuality}
                 onChange={(e) => setAudioQuality(e.target.value as 'low' | 'medium' | 'high')}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
               >
                 <option value="low">Low (smaller file size)</option>
                 <option value="medium">Medium (balanced)</option>
@@ -259,7 +259,7 @@ export const Settings: React.FC = () => {
                 onChange={(e) => setAutoStartRecording(e.target.checked)}
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
               />
-              <label htmlFor="autoStart" className="ml-2 block text-sm text-gray-900">
+              <label htmlFor="autoStart" className="ml-2 block text-sm text-gray-900 dark:text-white">
                 Automatically start recording when a meeting is detected
               </label>
             </div>
@@ -268,9 +268,9 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* OpenAI Model Selection */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+        <div className="bg-white dark:bg-slate-800 shadow rounded-lg mb-6">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <SparklesIcon className="h-5 w-5 mr-2" />
               OpenAI Model Selection
             </h2>
@@ -285,9 +285,9 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* Menu Bar Settings */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+        <div className="bg-white dark:bg-slate-800 shadow rounded-lg mb-6">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <Bars3Icon className="h-5 w-5 mr-2" />
               Menu Bar Settings
             </h2>
@@ -301,7 +301,7 @@ export const Settings: React.FC = () => {
                 onChange={(e) => setShowMenuBar(e.target.checked)}
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
               />
-              <label htmlFor="showMenuBar" className="ml-2 block text-sm text-gray-900">
+              <label htmlFor="showMenuBar" className="ml-2 block text-sm text-gray-900 dark:text-white">
                 Show menu bar items (native macOS menu bar)
               </label>
             </div>
@@ -315,12 +315,12 @@ export const Settings: React.FC = () => {
                 disabled={!showMenuBar}
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
               />
-              <label htmlFor="menuBarAlwaysVisible" className="ml-2 block text-sm text-gray-900">
+              <label htmlFor="menuBarAlwaysVisible" className="ml-2 block text-sm text-gray-900 dark:text-white">
                 Keep menu bar always visible (even when app is hidden)
               </label>
             </div>
 
-            <div className="text-sm text-gray-500 space-y-2">
+            <div className="text-sm text-gray-500 dark:text-slate-400 space-y-2">
               <p>• The system tray icon will always be available regardless of these settings</p>
               <p>• Menu bar shortcuts: Cmd+N (New Recording), Cmd+, (Settings), Cmd+D (Dashboard)</p>
               <p>• Use View menu to quickly navigate between Dashboard (Cmd+1) and Recordings (Cmd+2)</p>
@@ -330,9 +330,9 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* Meeting Templates */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+        <div className="bg-white dark:bg-slate-800 shadow rounded-lg mb-6">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <DocumentDuplicateIcon className="h-5 w-5 mr-2" />
               Meeting Templates
             </h2>
@@ -340,10 +340,10 @@ export const Settings: React.FC = () => {
           <div className="px-6 py-4">
             <div className="space-y-4">
               {/* Explanation Section */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <div className="flex items-start">
-                  <InformationCircleIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
-                  <div className="text-sm text-blue-800">
+                  <InformationCircleIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" />
+                  <div className="text-sm text-blue-800 dark:text-blue-200">
                     <p className="font-medium mb-1">How Templates Enhance Your Meetings</p>
                     <p className="mb-2">
                       Templates guide our AI to focus on specific aspects of your meetings:
@@ -362,10 +362,10 @@ export const Settings: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
                   Default Meeting Template
                 </label>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
                   Set your most common meeting type as the default. You can always change it when recording.
                 </p>
                 <TemplateSelector
@@ -379,9 +379,9 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* Notifications */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+        <div className="bg-white dark:bg-slate-800 shadow rounded-lg mb-6">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <BellIcon className="h-5 w-5 mr-2" />
               Notifications
             </h2>
@@ -438,15 +438,15 @@ export const Settings: React.FC = () => {
         
         {/* Save Button - Fixed at bottom */}
         {hasUnsavedChanges && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg px-6 py-4">
+          <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 shadow-lg px-6 py-4">
             <div className="max-w-4xl mx-auto flex items-center justify-between">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-slate-400">
                 You have unsaved changes
               </p>
               <div className="flex items-center space-x-3">
                 <button
                   onClick={() => window.location.reload()}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   Cancel
                 </button>

@@ -83,7 +83,7 @@ export const ActionItems: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Calendar */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -92,15 +92,15 @@ export const ActionItems: React.FC = () => {
                   <div className="flex space-x-2">
                     <button
                       onClick={handlePreviousMonth}
-                      className="p-2 hover:bg-gray-100 rounded-md"
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md"
                     >
-                      <ChevronLeftIcon className="h-5 w-5" />
+                      <ChevronLeftIcon className="h-5 w-5 text-gray-700 dark:text-slate-300" />
                     </button>
                     <button
                       onClick={handleNextMonth}
-                      className="p-2 hover:bg-gray-100 rounded-md"
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md"
                     >
-                      <ChevronRightIcon className="h-5 w-5" />
+                      <ChevronRightIcon className="h-5 w-5 text-gray-700 dark:text-slate-300" />
                     </button>
                   </div>
                 </div>
@@ -109,7 +109,7 @@ export const ActionItems: React.FC = () => {
               <div className="p-6">
                 <div className="grid grid-cols-7 gap-1 mb-2">
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
+                    <div key={day} className="text-center text-sm font-medium text-gray-500 dark:text-slate-400 py-2">
                       {day}
                     </div>
                   ))}
@@ -132,16 +132,16 @@ export const ActionItems: React.FC = () => {
                         onClick={() => setSelectedDate(day)}
                         className={`
                           h-24 p-2 border rounded-lg text-left transition-colors
-                          ${isSelected ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'}
-                          ${isCurrentDay ? 'ring-2 ring-indigo-400' : ''}
+                          ${isSelected ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'}
+                          ${isCurrentDay ? 'ring-2 ring-indigo-400 dark:ring-indigo-500' : ''}
                         `}
                       >
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
                           {format(day, 'd')}
                         </div>
                         {itemCount > 0 && (
                           <div className="mt-1">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200">
                               {itemCount}
                             </span>
                           </div>
@@ -156,21 +156,21 @@ export const ActionItems: React.FC = () => {
 
           {/* Action Items List */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                   {selectedDate ? format(selectedDate, 'MMM d, yyyy') : 'Select a date'}
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                   {selectedDateItems.length} action item{selectedDateItems.length !== 1 ? 's' : ''}
                 </p>
               </div>
               
-              <div className="divide-y divide-gray-200 max-h-[600px] overflow-y-auto">
+              <div className="divide-y divide-gray-200 dark:divide-slate-700 max-h-[600px] overflow-y-auto">
                 {selectedDateItems.length === 0 ? (
                   <div className="px-6 py-12 text-center">
-                    <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-500">
+                    <ClockIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-slate-500" />
+                    <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
                       No action items for this date
                     </p>
                   </div>
@@ -185,23 +185,23 @@ export const ActionItems: React.FC = () => {
                           )}
                           className={`mt-0.5 ${
                             item.status === 'completed'
-                              ? 'text-green-600'
-                              : 'text-gray-400 hover:text-gray-600'
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-400'
                           }`}
                         >
                           <CheckCircleIcon className="h-5 w-5" />
                         </button>
                         <div className="flex-1">
                           <p className={`text-sm ${
-                            item.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'
+                            item.status === 'completed' ? 'line-through text-gray-400 dark:text-slate-500' : 'text-gray-900 dark:text-white'
                           }`}>
                             {item.description}
                           </p>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                             From: {getMeetingTitle(item.meetingId)}
                           </p>
                           {item.dueDate && formatDueDate(item.dueDate) && (
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
                               Due: {formatDueDate(item.dueDate)}
                             </p>
                           )}
@@ -217,19 +217,19 @@ export const ActionItems: React.FC = () => {
 
         {/* Summary Stats */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h4 className="text-sm font-medium text-gray-500">Total Actions</h4>
-            <p className="mt-2 text-3xl font-bold text-gray-900">{actionItems.length}</p>
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+            <h4 className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Actions</h4>
+            <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{actionItems.length}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h4 className="text-sm font-medium text-gray-500">Pending</h4>
-            <p className="mt-2 text-3xl font-bold text-indigo-600">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+            <h4 className="text-sm font-medium text-gray-500 dark:text-slate-400">Pending</h4>
+            <p className="mt-2 text-3xl font-bold text-indigo-600 dark:text-indigo-400">
               {actionItems.filter(item => item.status !== 'completed').length}
             </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h4 className="text-sm font-medium text-gray-500">Completed</h4>
-            <p className="mt-2 text-3xl font-bold text-green-600">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+            <h4 className="text-sm font-medium text-gray-500 dark:text-slate-400">Completed</h4>
+            <p className="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">
               {actionItems.filter(item => item.status === 'completed').length}
             </p>
           </div>

@@ -1,0 +1,11 @@
+# Disable npm cache to prevent buildup
+cache=false
+
+# Use exact versions to reduce resolution time
+save-exact=true
+
+# Don't save optional dependencies
+omit=optional
+
+# Reduce install verbosity
+loglevel=warn
