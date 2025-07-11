@@ -25,3 +25,4 @@ yarn-error.log*
 
 # Electron build output
 dist/
+.mcp.json
